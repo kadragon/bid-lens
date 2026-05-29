@@ -11,6 +11,10 @@ describe("formatAmount", () => {
     expect(formatAmount(null)).toBe("미정");
   });
 
+  it("0원 예산은 0.0억원으로 표기", () => {
+    expect(formatAmount(0)).toBe("0.0억원");
+  });
+
   it("1.9억 예산은 1.9억원으로 표기", () => {
     expect(formatAmount(190000000)).toBe("1.9억원");
   });
@@ -49,14 +53,22 @@ describe("formatDate", () => {
     expect(formatDate("--")).toBe("-");
   });
 
-  it("8자리 미만 → 숫자만 그대로", () => {
+  it("8자리 미만 숫자 입력 → 그대로", () => {
     expect(formatDate("2025")).toBe("2025");
+  });
+
+  it("8자리 미만 부분 날짜는 원본 보존", () => {
+    expect(formatDate("2025-05")).toBe("2025-05");
   });
 });
 
 describe("renderStatusBadge", () => {
   it("null → 빈 문자열", () => {
     expect(renderStatusBadge(null)).toBe("");
+  });
+
+  it("빈 문자열 → 빈 문자열", () => {
+    expect(renderStatusBadge("")).toBe("");
   });
 
   it("마감/취소/종료/개찰 → badge-closed", () => {

@@ -17,7 +17,7 @@ export function formatDate(raw: string | null): string {
   if (d.length >= 8) {
     return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
   }
-  return d;
+  return raw;
 }
 
 /** 계약방법 → 시각 구분용 CSS 클래스 */
@@ -226,7 +226,7 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
     .badge-open { background: var(--success-bg); color: var(--success); border-color: #b7e0b7; }
     .label { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
     .amount { white-space: nowrap; }
-    .clse-date { white-space: nowrap; }
+    .ntce-date { white-space: nowrap; }
     .method {
       display: inline-block;
       font-size: 12px;
@@ -272,8 +272,8 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
     <form method="GET" action="/">
       <input name="q" type="text" placeholder="공고명 검색" value="${escapeHtml(query.q)}" />
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
-      <input name="from" type="date" value="${escapeHtml(query.from)}" title="마감일 시작" />
-      <input name="to" type="date" value="${escapeHtml(query.to)}" title="마감일 종료" />
+      <input name="from" type="date" value="${escapeHtml(query.from)}" title="공고일 시작" />
+      <input name="to" type="date" value="${escapeHtml(query.to)}" title="공고일 종료" />
       <button type="submit" class="btn-primary">검색</button>
       <a href="/" class="btn-secondary">초기화</a>
     </form>
@@ -317,7 +317,7 @@ function renderRow(row: BidRow): string {
   <td>${escapeHtml(row.dmnd_instt_nm ?? "-")}</td>
   <td><span class="method ${contractMethodClass(row.cntrct_cncls_mthd_nm)}">${escapeHtml(row.cntrct_cncls_mthd_nm ?? "-")}</span></td>
   <td class="amount">${formatAmount(row.asign_bdgt_amt)}</td>
-  <td class="clse-date">${formatDate(row.bid_ntce_date)}</td>
+  <td class="ntce-date">${formatDate(row.bid_ntce_date)}</td>
 </tr>`;
 }
 
