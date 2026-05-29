@@ -1,0 +1,12 @@
+pre-commit:
+  parallel: false
+  commands:
+    typecheck:
+      run: pnpm typecheck
+      fail_text: "TypeScript errors found"
+    lint:
+      run: pnpm lint
+      fail_text: "Biome lint/format errors found"
+    test:
+      run: pnpm test
+      fail_text: "Tests failed"
