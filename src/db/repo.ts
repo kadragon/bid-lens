@@ -28,6 +28,10 @@ export interface SearchParams {
   to?: string;
   page?: number;
   pageSize?: number;
+  /** true면 마감 지난 공고 포함. 기본 false → 마감 공고 제외. */
+  includeClosed?: boolean;
+  /** 마감 기준일 YYYY-MM-DD (KST). includeClosed=false일 때만 사용. */
+  today?: string;
 }
 
 export interface SearchResult {
@@ -125,6 +129,13 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
   if (params.to) {
     conditions.push("bid_ntce_date <= ?");
     bindings.push(params.to);
+  }
+  // 마감 지난 공고 제외 (soft 필터 — 삭제 없음). bid_clse_date 저장 포맷은 YYYY-MM-DD
+  // (prod 확인 — client.ts raw 저장). today도 동일 포맷이라 사전순=시간순 비교 성립.
+  // 컬럼 미래핑 → idx_bids_clse 사용. null·빈값은 정보 없음 → 숨기지 않음.
+  if (!params.includeClosed && params.today) {
+    conditions.push("(bid_clse_date IS NULL OR bid_clse_date = '' OR bid_clse_date >= ?)");
+    bindings.push(params.today);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

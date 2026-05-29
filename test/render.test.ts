@@ -1,10 +1,37 @@
 import { describe, expect, it } from "vitest";
+import type { BidRow, SearchResult } from "../src/db/repo";
 import {
   contractMethodClass,
   formatAmount,
   formatDate,
+  renderPage,
   renderStatusBadge,
 } from "../src/web/render";
+
+function row(over: Partial<BidRow> & Pick<BidRow, "bid_ntce_no">): BidRow {
+  return {
+    bid_ntce_ord: "00",
+    bid_ntce_nm: "테스트 공고",
+    bid_ntce_sttus_nm: "공고중",
+    bid_ntce_date: "202605010900",
+    bsns_div_nm: "용역",
+    ntce_instt_nm: "발주기관",
+    dmnd_instt_nm: "테스트대학교",
+    cntrct_cncls_mthd_nm: "일반경쟁",
+    bid_clse_date: "202612310900",
+    bid_clse_tm: "0900",
+    openg_date: "202612311000",
+    openg_tm: "1000",
+    asign_bdgt_amt: 100000000,
+    presmpt_prce: 90000000,
+    bidprc_psbl_indstryty_nm: "소프트웨어",
+    bid_ntce_url: "https://example.com/1",
+    collected_at: "2026-05-29T00:00:00Z",
+    ...over,
+  };
+}
+
+const baseQuery = { q: "", dmnd: "", from: "", to: "", page: 1, includeClosed: false };
 
 describe("formatAmount", () => {
   it("null → 미정", () => {
@@ -109,5 +136,46 @@ describe("contractMethodClass", () => {
 
   it("null → method-default", () => {
     expect(contractMethodClass(null)).toBe("method-default");
+  });
+});
+
+describe("renderPage 마감 포함 토글", () => {
+  it("includeClosed=false → 체크박스 미체크", () => {
+    const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
+    const html = renderPage(result, { ...baseQuery, includeClosed: false });
+
+    expect(html).toContain('name="includeClosed"');
+    expect(html).not.toContain('value="1" checked');
+  });
+
+  it("includeClosed=true → 체크박스 체크 상태", () => {
+    const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
+    const html = renderPage(result, { ...baseQuery, includeClosed: true });
+
+    expect(html).toContain('value="1" checked');
+  });
+
+  it("페이지네이션 링크가 includeClosed 상태 보존", () => {
+    const result: SearchResult = {
+      rows: [row({ bid_ntce_no: "a" })],
+      total: 50,
+      page: 1,
+      pageSize: 20,
+    };
+    const html = renderPage(result, { ...baseQuery, includeClosed: true });
+
+    expect(html).toContain("includeClosed=1");
+  });
+
+  it("includeClosed=false → 페이지네이션 링크에 includeClosed 없음", () => {
+    const result: SearchResult = {
+      rows: [row({ bid_ntce_no: "a" })],
+      total: 50,
+      page: 1,
+      pageSize: 20,
+    };
+    const html = renderPage(result, { ...baseQuery, includeClosed: false });
+
+    expect(html).not.toContain("includeClosed=1");
   });
 });
