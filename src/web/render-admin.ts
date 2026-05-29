@@ -81,6 +81,7 @@ export function renderAdminPage(rules: FilterRuleRow[]): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>bid-lens 어드민 — 수집 필터 규칙</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet" />
   <style>
     :root {

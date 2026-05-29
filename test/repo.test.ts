@@ -44,8 +44,8 @@ beforeEach(async () => {
   await env.DB.prepare("DELETE FROM bids").run();
 });
 
-describe("searchBids 마감 필터 (보존 정책)", () => {
-  it("기본: 마감 지난 공고 제외, 미마감·당일·빈값 포함", async () => {
+describe("searchBids close-date filter", () => {
+  it("excludes closed bids by default", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" }), // 어제 마감 → 제외
       bid({ bidNtceNo: "today", bidClseDate: "2026-05-29" }), // 당일 마감 → 포함
@@ -60,7 +60,7 @@ describe("searchBids 마감 필터 (보존 정책)", () => {
     expect(res.total).toBe(3);
   });
 
-  it("includeClosed=true: 마감 포함 전체 반환", async () => {
+  it("includes closed bids when requested", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" }),
       bid({ bidNtceNo: "future", bidClseDate: "2026-06-01" }),
@@ -71,7 +71,7 @@ describe("searchBids 마감 필터 (보존 정책)", () => {
     expect(res.total).toBe(2);
   });
 
-  it("today 미지정 시 필터 미적용 (전체 반환)", async () => {
+  it("skips close-date filter without today", async () => {
     await upsertBids(env.DB, [bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" })]);
 
     const res = await searchBids(env.DB, {});
@@ -79,7 +79,7 @@ describe("searchBids 마감 필터 (보존 정책)", () => {
     expect(res.total).toBe(1);
   });
 
-  it("마감 필터는 q·dmnd 조건과 AND 결합", async () => {
+  it("combines close-date filter with q", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "a", bidNtceNm: "AI 플랫폼 구축", bidClseDate: "2026-05-28" }), // 마감 → 제외
       bid({ bidNtceNo: "b", bidNtceNm: "AI 플랫폼 운영", bidClseDate: "2026-06-01" }), // 미래 → 포함
@@ -93,8 +93,8 @@ describe("searchBids 마감 필터 (보존 정책)", () => {
   });
 });
 
-describe("searchBids LIKE 와일드카드 이스케이프", () => {
-  it("q 의 % 는 리터럴로 매칭 (와일드카드 의미 박탈)", async () => {
+describe("searchBids LIKE escaping", () => {
+  it("matches q percent literally", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "lit", bidNtceNm: "할인 50% 행사" }),
       bid({ bidNtceNo: "other", bidNtceNm: "할인 5000원 행사" }),
@@ -106,7 +106,7 @@ describe("searchBids LIKE 와일드카드 이스케이프", () => {
     expect(res.total).toBe(1);
   });
 
-  it("dmnd 의 _ 는 리터럴로 매칭", async () => {
+  it("matches dmnd underscore literally", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "u", dmndInsttNm: "A_대학교" }),
       bid({ bidNtceNo: "v", dmndInsttNm: "AX대학교" }),
@@ -119,7 +119,7 @@ describe("searchBids LIKE 와일드카드 이스케이프", () => {
 
   // 백슬래시(ESCAPE 문자 자체) 분기 고정. 미이스케이프 시 `\B` → 이스케이프된 리터럴 B 로 읽혀
   // 패턴이 깨지고 0건 반환 → 이 케이스가 escapeLike 의 백슬래시 분기를 pin.
-  it("q 의 백슬래시는 리터럴로 매칭 (ESCAPE 문자 자체 오염 방지)", async () => {
+  it("matches q backslash literally", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "bs", bidNtceNm: "A\\B 프로젝트" }),
       bid({ bidNtceNo: "plain", bidNtceNm: "AXB 프로젝트" }),
@@ -138,11 +138,11 @@ describe("filter_rules CRUD", () => {
     await env.DB.prepare("DELETE FROM filter_rules").run();
   });
 
-  it("활성 규칙 0건 → getFilterRules 가 DEFAULT_RULES 폴백", async () => {
+  it("falls back with no active rules", async () => {
     expect(await getFilterRules(env.DB)).toEqual(DEFAULT_RULES);
   });
 
-  it("add → getFilterRules 에 rule_type별 그룹핑 반영", async () => {
+  it("groups added rules by type", async () => {
     await addFilterRule(env.DB, "dmnd_include", "대학");
     await addFilterRule(env.DB, "industry_include", "소프트웨어");
     await addFilterRule(env.DB, "industry_include", "컴퓨터");
@@ -153,7 +153,7 @@ describe("filter_rules CRUD", () => {
     expect(r.dmndExclude).toEqual([]);
   });
 
-  it("enabled=0 규칙은 그룹에서 빠짐 (다른 활성 규칙 있으면 폴백 안 함)", async () => {
+  it("omits disabled rules", async () => {
     await addFilterRule(env.DB, "dmnd_include", "대학");
     await addFilterRule(env.DB, "dmnd_exclude", "병원");
 
@@ -168,7 +168,7 @@ describe("filter_rules CRUD", () => {
     expect(r.dmndExclude).toEqual([]);
   });
 
-  it("모든 규칙 비활성 → DEFAULT_RULES 폴백", async () => {
+  it("falls back when all rules disabled", async () => {
     await addFilterRule(env.DB, "dmnd_include", "대학");
     const rows = await listFilterRules(env.DB);
     const first = rows.find((x) => x.rule_type === "dmnd_include");
@@ -179,7 +179,7 @@ describe("filter_rules CRUD", () => {
     expect(await getFilterRules(env.DB)).toEqual(DEFAULT_RULES);
   });
 
-  it("delete → listFilterRules 에서 제거", async () => {
+  it("deletes rules", async () => {
     await addFilterRule(env.DB, "name_exclude", "유지보수");
     const rows = await listFilterRules(env.DB);
     const target = rows.find((x) => x.rule_type === "name_exclude");
@@ -190,15 +190,15 @@ describe("filter_rules CRUD", () => {
     expect(await listFilterRules(env.DB)).toHaveLength(0);
   });
 
-  it("잘못된 rule_type → 거부", async () => {
+  it("rejects invalid rule_type", async () => {
     await expect(addFilterRule(env.DB, "bogus_type", "x")).rejects.toThrow();
   });
 
-  it("빈/공백 pattern → 거부", async () => {
+  it("rejects blank pattern", async () => {
     await expect(addFilterRule(env.DB, "dmnd_include", "   ")).rejects.toThrow();
   });
 
-  it("중복 (rule_type, pattern) add → 행 1개만 (UNIQUE)", async () => {
+  it("keeps duplicate rule unique", async () => {
     await addFilterRule(env.DB, "dmnd_include", "대학");
     await addFilterRule(env.DB, "dmnd_include", "대학");
     const matches = (await listFilterRules(env.DB)).filter(
@@ -207,7 +207,7 @@ describe("filter_rules CRUD", () => {
     expect(matches).toHaveLength(1);
   });
 
-  it("비활성 패턴 재add → 재활성화 (ON CONFLICT DO UPDATE enabled=1)", async () => {
+  it("reactivates duplicate disabled rule", async () => {
     await addFilterRule(env.DB, "dmnd_include", "대학"); // 활성 규칙 — DEFAULT 폴백 방지
     await addFilterRule(env.DB, "name_exclude", "유지보수");
     const target = (await listFilterRules(env.DB)).find((r) => r.pattern === "유지보수");

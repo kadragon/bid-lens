@@ -12,8 +12,8 @@ beforeAll(async () => {
   await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 });
 
-describe("filter_rules 시드 무결성", () => {
-  it("0002 시드 → 활성 행 존재 + getFilterRules 가 DEFAULT_RULES 와 동일", async () => {
+describe("filter_rules seed integrity", () => {
+  it("0002 seed has active rows matching DEFAULT_RULES", async () => {
     const rows = await listFilterRules(env.DB);
     expect(rows.length).toBeGreaterThan(0); // 시드 존재 — 폴백 마스킹 차단
     expect(rows.every((r) => r.enabled === 1)).toBe(true); // 시드 행 활성
