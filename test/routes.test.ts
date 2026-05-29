@@ -42,8 +42,28 @@ beforeEach(async () => {
   await env.DB.prepare("DELETE FROM bids").run();
 });
 
-describe("GET / 공고일 from/to 필터 (저장 포맷 YYYY-MM-DD)", () => {
-  it("from 이상 공고만 노출 — 대시 포맷 그대로 비교", async () => {
+describe("GET /favicon.svg", () => {
+  it("serves cacheable SVG favicon", async () => {
+    const res = await webRouter.request("/favicon.svg", {}, testEnv);
+    const svg = new TextDecoder().decode(await res.arrayBuffer());
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/svg+xml; charset=utf-8");
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=604800");
+    expect(svg).toContain("<svg");
+    expect(svg).toContain('viewBox="0 0 32 32"');
+  });
+
+  it("redirects default favicon.ico request to SVG favicon", async () => {
+    const res = await webRouter.request("/favicon.ico", {}, testEnv);
+
+    expect(res.status).toBe(308);
+    expect(res.headers.get("Location")).toBe("/favicon.svg");
+  });
+});
+
+describe("GET / bid notice date from/to filter", () => {
+  it("shows notices on or after from date", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "in", bidNtceNm: "범위내공고ABC", bidNtceDate: "2026-05-27" }),
       bid({ bidNtceNo: "out", bidNtceNm: "범위밖공고XYZ", bidNtceDate: "2026-05-20" }),
@@ -56,7 +76,7 @@ describe("GET / 공고일 from/to 필터 (저장 포맷 YYYY-MM-DD)", () => {
     expect(html).not.toContain("범위밖공고XYZ");
   });
 
-  it("to 이하 공고만 노출", async () => {
+  it("shows notices on or before to date", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "in", bidNtceNm: "범위내공고ABC", bidNtceDate: "2026-05-20" }),
       bid({ bidNtceNo: "out", bidNtceNm: "범위밖공고XYZ", bidNtceDate: "2026-05-27" }),

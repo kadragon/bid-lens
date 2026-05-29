@@ -3,6 +3,7 @@ import type { SearchParams } from "../db/repo";
 import { searchBids } from "../db/repo";
 import type { Env } from "../types";
 import { kstDateIso } from "../util/date";
+import { FAVICON_SVG } from "./favicon";
 import { renderPage } from "./render";
 
 export const webRouter = new Hono<{ Bindings: Env }>();
@@ -31,6 +32,17 @@ function buildSearchParams(input: SearchInput): SearchParams {
   if (input.pageSize !== undefined) params.pageSize = input.pageSize;
   return params;
 }
+
+webRouter.get("/favicon.svg", () => {
+  return new Response(FAVICON_SVG, {
+    headers: {
+      "Content-Type": "image/svg+xml; charset=utf-8",
+      "Cache-Control": "public, max-age=604800",
+    },
+  });
+});
+
+webRouter.get("/favicon.ico", (c) => c.redirect("/favicon.svg", 308));
 
 webRouter.get("/", async (c) => {
   const q = c.req.query("q") ?? "";

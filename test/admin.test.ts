@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getFilterRules } from "../src/db/repo";
 import type { Env } from "../src/types";
 import { adminRouter } from "../src/web/admin";
+import { renderAdminPage } from "../src/web/render-admin";
 
 const PW = "test-pw";
 const AUTH = `Basic ${btoa(`admin:${PW}`)}`;
@@ -30,20 +31,26 @@ beforeEach(async () => {
   await env.DB.prepare("DELETE FROM filter_rules").run();
 });
 
-describe("어드민 인증", () => {
-  it("인증 헤더 없이 GET /admin → 401", async () => {
+describe("admin auth", () => {
+  it("includes SVG favicon link in head", () => {
+    const html = renderAdminPage([]);
+
+    expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg" />');
+  });
+
+  it("returns 401 for GET /admin without auth header", async () => {
     const res = await adminRouter.request("/", {}, testEnv);
     expect(res.status).toBe(401);
   });
 
-  it("올바른 creds GET /admin → 200, 페이지 렌더", async () => {
+  it("renders page for GET /admin with valid creds", async () => {
     const res = await adminRouter.request("/", { headers: { Authorization: AUTH } }, testEnv);
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("수집 필터 규칙");
   });
 
-  it("잘못된 creds로 POST /rules → 401 (변경 라우트도 게이트)", async () => {
+  it("returns 401 for POST /rules with invalid creds", async () => {
     const res = await adminRouter.request(
       "/rules",
       {
@@ -59,14 +66,14 @@ describe("어드민 인증", () => {
     expect(res.status).toBe(401);
   });
 
-  it("ADMIN_PASSWORD 미설정 → 503 (fail-closed)", async () => {
+  it("returns 503 when ADMIN_PASSWORD is unset", async () => {
     const res = await adminRouter.request("/", {}, { ...testEnv, ADMIN_PASSWORD: "" });
     expect(res.status).toBe(503);
   });
 });
 
-describe("어드민 규칙 변경", () => {
-  it("POST /rules → 302, getFilterRules 에 반영", async () => {
+describe("admin rule mutations", () => {
+  it("POST /rules redirects and updates getFilterRules", async () => {
     const res = await adminRouter.request(
       "/rules",
       form({ rule_type: "name_exclude", pattern: "테스트제외" }),
@@ -78,7 +85,7 @@ describe("어드민 규칙 변경", () => {
     expect(rules.nameExclude).toContain("테스트제외");
   });
 
-  it("POST /rules 잘못된 rule_type → 400", async () => {
+  it("returns 400 for POST /rules with invalid rule_type", async () => {
     const res = await adminRouter.request(
       "/rules",
       form({ rule_type: "bogus", pattern: "x" }),
@@ -87,17 +94,17 @@ describe("어드민 규칙 변경", () => {
     expect(res.status).toBe(400);
   });
 
-  it("id <= 0 (예: /rules/0/delete) → 400", async () => {
+  it("returns 400 for non-positive rule id", async () => {
     const res = await adminRouter.request("/rules/0/delete", form({}), testEnv);
     expect(res.status).toBe(400);
   });
 
-  it("존재하지 않는 id delete → 302 (멱등 — no-op)", async () => {
+  it("redirects for missing id delete as idempotent no-op", async () => {
     const res = await adminRouter.request("/rules/999999/delete", form({}), testEnv);
     expect(res.status).toBe(302);
   });
 
-  it("POST /rules/:id/delete → 302, 제거", async () => {
+  it("POST /rules/:id/delete redirects and removes rule", async () => {
     await adminRouter.request(
       "/rules",
       form({ rule_type: "dmnd_exclude", pattern: "삭제대상" }),
@@ -121,7 +128,7 @@ describe("어드민 규칙 변경", () => {
     expect(after.dmndExclude).not.toContain("삭제대상");
   });
 
-  it("POST /rules/:id/toggle off→on 왕복 (enabled=0 후 enabled=1)", async () => {
+  it("POST /rules/:id/toggle supports off then on", async () => {
     await adminRouter.request(
       "/rules",
       form({ rule_type: "dmnd_include", pattern: "대학" }),
@@ -160,7 +167,7 @@ describe("어드민 규칙 변경", () => {
     expect(afterOn.dmndExclude).toContain("병원");
   });
 
-  it("교차 출처 POST → 403 (CSRF 차단), 동일 출처는 통과", async () => {
+  it("blocks cross-origin POST and allows same-origin POST", async () => {
     const csrf = await adminRouter.request(
       "/rules",
       {
