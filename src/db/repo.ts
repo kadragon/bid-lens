@@ -253,3 +253,39 @@ export async function setFilterRuleEnabled(
     .bind(enabled ? 1 : 0, id)
     .run();
 }
+
+// --- login rate-limiting ---
+
+export async function countRecentFailures(
+  db: D1Database,
+  ip: string,
+  since: number,
+): Promise<number> {
+  const res = await db
+    .prepare(
+      "SELECT COUNT(*) as count FROM login_attempts WHERE ip = ? AND attempted_at >= ? AND success = 0",
+    )
+    .bind(ip, since)
+    .first<{ count: number }>();
+  return res?.count ?? 0;
+}
+
+export async function recordLoginAttempt(
+  db: D1Database,
+  ip: string,
+  success: boolean,
+  now: number,
+): Promise<void> {
+  await db
+    .prepare("INSERT INTO login_attempts (ip, attempted_at, success) VALUES (?, ?, ?)")
+    .bind(ip, now, success ? 1 : 0)
+    .run();
+}
+
+export async function clearLoginFailures(db: D1Database, ip: string): Promise<void> {
+  await db.prepare("DELETE FROM login_attempts WHERE ip = ? AND success = 0").bind(ip).run();
+}
+
+export async function pruneOldLoginAttempts(db: D1Database, before: number): Promise<void> {
+  await db.prepare("DELETE FROM login_attempts WHERE attempted_at < ?").bind(before).run();
+}

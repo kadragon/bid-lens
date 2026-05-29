@@ -49,6 +49,31 @@ export const DEFAULT_RULES: FilterRules = {
   industryExclude: ["디지털콘텐츠개발서비스사업"],
 };
 
+export interface SegmentInfo {
+  segment: string;
+  /** industryInclude 에서 최초 매칭된 패턴. 없으면 null. excluded=true 이면 항상 null. */
+  matchedBy: string | null;
+  /** industryExclude 패턴에 매칭 → 이 세그먼트는 탈락. */
+  excluded: boolean;
+}
+
+/**
+ * 업종 문자열을 세그먼트별 분류 — isTargetBid 와 동일 로직, 시각화용.
+ * industryInclude 빈 그룹 → matchedBy 항상 null (포함 제약 해제 상태).
+ */
+export function classifySegments(indstrytyNm: string, rules: FilterRules): SegmentInfo[] {
+  return indstrytyNm.split(",").map((raw) => {
+    const segment = raw.trim();
+    const isExcluded = rules.industryExclude.some((ex) => segment.includes(ex));
+    if (isExcluded) return { segment, matchedBy: null, excluded: true };
+    const matchedBy =
+      rules.industryInclude.length > 0
+        ? (rules.industryInclude.find((kw) => segment.includes(kw)) ?? null)
+        : null;
+    return { segment, matchedBy, excluded: false };
+  });
+}
+
 /**
  * 대학 SW 용역 입찰공고 필터 — 규칙 주입형 순수 함수.
  *

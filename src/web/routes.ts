@@ -1,8 +1,10 @@
 import { Hono } from "hono";
+import { getCookie } from "hono/cookie";
 import type { SearchParams } from "../db/repo";
-import { searchBids } from "../db/repo";
+import { getFilterRules, searchBids } from "../db/repo";
 import type { Env } from "../types";
 import { kstDateIso } from "../util/date";
+import { passwordFingerprint } from "./admin";
 import { FAVICON_SVG } from "./favicon";
 import { renderPage } from "./render";
 
@@ -50,18 +52,30 @@ webRouter.get("/", async (c) => {
   const from = c.req.query("from") ?? "";
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
-  // 체크박스 value="1"만 전송, 미체크 시 파라미터 부재 → 기본 마감 제외. "1"/"true"만 포함.
   const includeClosed =
     c.req.query("includeClosed") === "1" || c.req.query("includeClosed") === "true";
   const today = kstDateIso(new Date());
 
-  // form input·저장값 모두 YYYY-MM-DD → 변환 없이 그대로 비교 (대시 사전순=시간순)
-  const result = await searchBids(
-    c.env.DB,
-    buildSearchParams({ q, dmnd, from, to, page, includeClosed, today }),
-  );
+  const [result, filterRules] = await Promise.all([
+    searchBids(c.env.DB, buildSearchParams({ q, dmnd, from, to, page, includeClosed, today })),
+    getFilterRules(c.env.DB),
+  ]);
 
-  const html = renderPage(result, { q, dmnd, from, to, page, includeClosed });
+  // admin_auth 쿠키값이 현재 비밀번호 핑거프린트와 일치하면 isAdmin
+  let isAdmin = false;
+  if (c.env.ADMIN_PASSWORD) {
+    const cookie = getCookie(c, "admin_auth");
+    if (cookie) {
+      const expected = await passwordFingerprint(c.env.ADMIN_PASSWORD);
+      isAdmin = cookie === expected;
+    }
+  }
+
+  const html = renderPage(
+    result,
+    { q, dmnd, from, to, page, includeClosed },
+    { isAdmin, filterRules },
+  );
   return c.html(html);
 });
 

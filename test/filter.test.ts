@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_RULES, type FilterRules, isTargetBid } from "../src/collector/filter";
+import {
+  DEFAULT_RULES,
+  type FilterRules,
+  classifySegments,
+  isTargetBid,
+} from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";
 
 function makeBid(overrides: Partial<BidItem> = {}): BidItem {
@@ -195,5 +200,68 @@ describe("isTargetBid dynamic rules", () => {
         rules({ industryInclude: ["건축"], industryExclude: ["리모델링"] }),
       ),
     ).toBe(false);
+  });
+});
+
+describe("classifySegments", () => {
+  it("marks matched segment with first matching include pattern", () => {
+    const result = classifySegments("소프트웨어개발공급업", DEFAULT_RULES);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.matchedBy).toBe("소프트웨어");
+    expect(result[0]?.excluded).toBe(false);
+  });
+
+  it("marks excluded segment", () => {
+    const result = classifySegments("디지털콘텐츠개발서비스사업", DEFAULT_RULES);
+    expect(result[0]?.excluded).toBe(true);
+    expect(result[0]?.matchedBy).toBeNull();
+  });
+
+  it("marks neutral segment (no include match, not excluded)", () => {
+    const result = classifySegments("건축설계및관련서비스업", DEFAULT_RULES);
+    expect(result[0]?.matchedBy).toBeNull();
+    expect(result[0]?.excluded).toBe(false);
+  });
+
+  it("handles comma-separated multiple segments", () => {
+    const result = classifySegments(
+      "소프트웨어개발공급업, 디지털콘텐츠개발서비스사업",
+      DEFAULT_RULES,
+    );
+    expect(result).toHaveLength(2);
+    expect(result[0]?.segment).toBe("소프트웨어개발공급업");
+    expect(result[0]?.matchedBy).toBe("소프트웨어");
+    expect(result[1]?.segment).toBe("디지털콘텐츠개발서비스사업");
+    expect(result[1]?.excluded).toBe(true);
+  });
+
+  it("returns correct segment text trimmed", () => {
+    const result = classifySegments("  정보보호서비스업  ", DEFAULT_RULES);
+    expect(result[0]?.segment).toBe("정보보호서비스업");
+    expect(result[0]?.matchedBy).toBe("정보보호");
+  });
+
+  it("respects empty industryInclude — no matchedBy badges", () => {
+    const rules: FilterRules = { ...DEFAULT_RULES, industryInclude: [] };
+    const result = classifySegments("소프트웨어개발공급업", rules);
+    expect(result[0]?.matchedBy).toBeNull();
+    expect(result[0]?.excluded).toBe(false);
+  });
+
+  it("excluded takes priority over include match when patterns overlap", () => {
+    const rules: FilterRules = {
+      ...DEFAULT_RULES,
+      industryInclude: ["소프트웨어"],
+      industryExclude: ["소프트웨어"],
+    };
+    const result = classifySegments("소프트웨어개발공급업", rules);
+    expect(result[0]?.excluded).toBe(true);
+    expect(result[0]?.matchedBy).toBeNull();
+  });
+
+  it("returns empty array for empty string", () => {
+    const result = classifySegments("", DEFAULT_RULES);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.segment).toBe("");
   });
 });

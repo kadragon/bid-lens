@@ -1,3 +1,4 @@
+import { type FilterRules, classifySegments } from "../collector/filter";
 import type { BidRow, SearchResult } from "../db/repo";
 
 /** 배정예산(원) → X.X억원 */
@@ -57,9 +58,14 @@ interface SearchQuery {
   includeClosed: boolean;
 }
 
-export function renderPage(result: SearchResult, query: SearchQuery): string {
+interface RenderOpts {
+  isAdmin: boolean;
+  filterRules: FilterRules;
+}
+
+export function renderPage(result: SearchResult, query: SearchQuery, opts?: RenderOpts): string {
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
-  const rows = result.rows.map((row) => renderRow(row)).join("\n");
+  const rows = result.rows.map((row) => renderRow(row, opts)).join("\n");
   const pagination = renderPagination(query, result.page, totalPages, result.total);
 
   return `<!DOCTYPE html>
@@ -252,6 +258,33 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
     .method-general { background: #eef4ff; color: #1b4fa0; border-color: #bcd3f5; }
     .method-limited { background: #fff4e5; color: #9a5b00; border-color: #ffd9a0; }
     .method-default { background: var(--surface-soft); color: var(--body); }
+    /* 업종 태그 */
+    .industry-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .ind-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 11px; padding: 1px 7px;
+      border-radius: var(--r-sm); border: 1px solid var(--hairline);
+      background: var(--surface-soft); color: var(--muted);
+      white-space: nowrap;
+    }
+    .ind-chip-match {
+      background: #eef4ff; color: #1b4fa0; border-color: #bcd3f5;
+    }
+    .ind-chip-excl {
+      background: var(--surface-soft); color: var(--muted);
+      text-decoration: line-through; opacity: 0.65;
+    }
+    .ind-match-badge {
+      font-size: 10px; font-weight: 500;
+      padding: 0 4px; border-radius: 3px;
+      background: #1b4fa0; color: #fff;
+    }
+    .ind-x-btn {
+      display: inline-flex; align-items: center;
+      margin: 0; padding: 0; background: none; border: none;
+      cursor: pointer; color: var(--muted); font-size: 11px; line-height: 1;
+    }
+    .ind-x-btn:hover { color: #b3261e; }
     .pagination {
       display: flex;
       gap: 4px;
@@ -320,7 +353,46 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
 </html>`;
 }
 
-function renderRow(row: BidRow): string {
+function renderIndustryTags(raw: string | null, opts: RenderOpts | undefined): string {
+  if (!raw) return "";
+  const rules = opts?.filterRules;
+  if (!rules) return `<div class="label">${escapeHtml(raw)}</div>`;
+
+  const segments = classifySegments(raw, rules);
+  const chips = segments
+    .map((info) => {
+      const segHtml = escapeHtml(info.segment);
+      if (!segHtml) return "";
+
+      let cls = "ind-chip";
+      let inner = segHtml;
+
+      if (info.excluded) {
+        cls += " ind-chip-excl";
+      } else if (info.matchedBy !== null) {
+        cls += " ind-chip-match";
+        inner += ` <span class="ind-match-badge">${escapeHtml(info.matchedBy)}</span>`;
+      }
+
+      // X 버튼: admin 로그인 중이고 아직 excluded 아닌 세그먼트에만 표시
+      let xBtn = "";
+      if (opts?.isAdmin && !info.excluded) {
+        xBtn = `<form method="POST" action="/admin/rules" style="display:inline">
+          <input type="hidden" name="rule_type" value="industry_exclude" />
+          <input type="hidden" name="pattern" value="${escapeHtml(info.segment)}" />
+          <button type="submit" class="ind-x-btn" title="업종 제외 규칙 추가 (다음 수집부터 적용)">✕</button>
+        </form>`;
+      }
+
+      return `<span class="${cls}">${inner}${xBtn}</span>`;
+    })
+    .filter(Boolean)
+    .join("");
+
+  return chips ? `<div class="industry-tags">${chips}</div>` : "";
+}
+
+function renderRow(row: BidRow, opts?: RenderOpts): string {
   return `<tr>
   <td>${renderStatusBadge(row.bid_ntce_sttus_nm)}</td>
   <td class="title-cell">
@@ -329,7 +401,7 @@ function renderRow(row: BidRow): string {
         ? `<a href="${safeUrl(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
         : escapeHtml(row.bid_ntce_nm ?? "-")
     }
-    <div class="label">${escapeHtml(row.bidprc_psbl_indstryty_nm ?? "")}</div>
+    ${renderIndustryTags(row.bidprc_psbl_indstryty_nm, opts)}
   </td>
   <td>${escapeHtml(row.dmnd_instt_nm ?? "-")}</td>
   <td><span class="method ${contractMethodClass(row.cntrct_cncls_mthd_nm)}">${escapeHtml(row.cntrct_cncls_mthd_nm ?? "-")}</span></td>
