@@ -42,13 +42,10 @@ webRouter.get("/", async (c) => {
   const includeClosed = c.req.query("includeClosed") !== undefined;
   const today = kstDateIso(new Date());
 
-  // form input은 YYYY-MM-DD, D1 비교는 YYYYMMDD
-  const fromFmt = from.replace(/-/g, "");
-  const toFmt = to.replace(/-/g, "");
-
+  // form input·저장값 모두 YYYY-MM-DD → 변환 없이 그대로 비교 (대시 사전순=시간순)
   const result = await searchBids(
     c.env.DB,
-    buildSearchParams({ q, dmnd, from: fromFmt, to: toFmt, page, includeClosed, today }),
+    buildSearchParams({ q, dmnd, from, to, page, includeClosed, today }),
   );
 
   const html = renderPage(result, { q, dmnd, from, to, page, includeClosed });
