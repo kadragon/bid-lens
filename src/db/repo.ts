@@ -119,11 +119,11 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
     bindings.push(`%${params.dmnd}%`);
   }
   if (params.from) {
-    conditions.push("bid_clse_date >= ?");
+    conditions.push("bid_ntce_date >= ?");
     bindings.push(params.from);
   }
   if (params.to) {
-    conditions.push("bid_clse_date <= ?");
+    conditions.push("bid_ntce_date <= ?");
     bindings.push(params.to);
   }
 

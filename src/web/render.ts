@@ -1,20 +1,31 @@
 import type { BidRow, SearchResult } from "../db/repo";
 
+/** 배정예산(원) → X.X억원 */
 export function formatAmount(amount: number | null): string {
-  if (!amount) return "미정";
-  return `${amount.toLocaleString("ko-KR")}원`;
+  if (amount === null) return "미정";
+  return `${(amount / 100_000_000).toFixed(1)}억원`;
 }
 
-/** YYYYMMDDHHSS → YYYY-MM-DD HH:MM */
+/** 다양한 날짜 표기(YYYYMMDD, YYYY-MM-DD, +시간)를 숫자만 추출해 정규화 */
 export function formatDate(raw: string | null): string {
   if (!raw) return "-";
-  if (raw.length >= 12) {
-    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)} ${raw.slice(8, 10)}:${raw.slice(10, 12)}`;
+  const d = raw.replace(/\D/g, "");
+  if (d.length === 0) return "-";
+  if (d.length >= 12) {
+    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)} ${d.slice(8, 10)}:${d.slice(10, 12)}`;
   }
-  if (raw.length >= 8) {
-    return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`;
+  if (d.length >= 8) {
+    return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
   }
   return raw;
+}
+
+/** 계약방법 → 시각 구분용 CSS 클래스 */
+export function contractMethodClass(name: string | null): string {
+  if (name === null) return "method-default";
+  if (name.includes("제한경쟁")) return "method-limited";
+  if (name.includes("일반경쟁")) return "method-general";
+  return "method-default";
 }
 
 function escapeHtml(s: string): string {
@@ -29,7 +40,7 @@ function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? escapeHtml(url) : "#";
 }
 
-function renderStatusBadge(status: string | null): string {
+export function renderStatusBadge(status: string | null): string {
   if (!status) return "";
   let cls = "badge-default";
   if (/마감|취소|종료|개찰/.test(status)) cls = "badge-closed";
@@ -215,7 +226,19 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
     .badge-open { background: var(--success-bg); color: var(--success); border-color: #b7e0b7; }
     .label { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
     .amount { white-space: nowrap; }
-    .clse-date { white-space: nowrap; }
+    .ntce-date { white-space: nowrap; }
+    .method {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--hairline);
+      white-space: nowrap;
+    }
+    .method-general { background: #eef4ff; color: #1b4fa0; border-color: #bcd3f5; }
+    .method-limited { background: #fff4e5; color: #9a5b00; border-color: #ffd9a0; }
+    .method-default { background: var(--surface-soft); color: var(--body); }
     .pagination {
       display: flex;
       gap: 4px;
@@ -249,8 +272,8 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
     <form method="GET" action="/">
       <input name="q" type="text" placeholder="공고명 검색" value="${escapeHtml(query.q)}" />
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
-      <input name="from" type="date" value="${escapeHtml(query.from)}" title="마감일 시작" />
-      <input name="to" type="date" value="${escapeHtml(query.to)}" title="마감일 종료" />
+      <input name="from" type="date" value="${escapeHtml(query.from)}" title="공고일 시작" />
+      <input name="to" type="date" value="${escapeHtml(query.to)}" title="공고일 종료" />
       <button type="submit" class="btn-primary">검색</button>
       <a href="/" class="btn-secondary">초기화</a>
     </form>
@@ -262,11 +285,11 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
       <table>
         <thead>
           <tr>
+            <th>공고구분</th>
             <th>공고명</th>
             <th>수요기관</th>
             <th>계약방법</th>
             <th>배정예산</th>
-            <th>마감일시</th>
             <th>공고일</th>
           </tr>
         </thead>
@@ -282,20 +305,19 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
 
 function renderRow(row: BidRow): string {
   return `<tr>
+  <td>${renderStatusBadge(row.bid_ntce_sttus_nm)}</td>
   <td class="title-cell">
     ${
       row.bid_ntce_url
         ? `<a href="${safeUrl(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
         : escapeHtml(row.bid_ntce_nm ?? "-")
     }
-    ${renderStatusBadge(row.bid_ntce_sttus_nm)}
     <div class="label">${escapeHtml(row.bidprc_psbl_indstryty_nm ?? "")}</div>
   </td>
   <td>${escapeHtml(row.dmnd_instt_nm ?? "-")}</td>
-  <td>${escapeHtml(row.cntrct_cncls_mthd_nm ?? "-")}</td>
+  <td><span class="method ${contractMethodClass(row.cntrct_cncls_mthd_nm)}">${escapeHtml(row.cntrct_cncls_mthd_nm ?? "-")}</span></td>
   <td class="amount">${formatAmount(row.asign_bdgt_amt)}</td>
-  <td class="clse-date">${formatDate(row.bid_clse_date)}${row.bid_clse_tm ? ` ${row.bid_clse_tm.slice(0, 2)}:${row.bid_clse_tm.slice(2, 4)}` : ""}</td>
-  <td class="clse-date">${formatDate(row.bid_ntce_date)}</td>
+  <td class="ntce-date">${formatDate(row.bid_ntce_date)}</td>
 </tr>`;
 }
 
