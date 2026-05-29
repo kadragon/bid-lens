@@ -36,3 +36,11 @@ strict 전부 on + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`. �
 ## SQL
 
 모든 쿼리는 `src/db/repo.ts`에만. 라우트/수집기는 repo 함수 경유. 바인딩 파라미터 사용 (문자열 보간 금지 — SQL injection).
+
+## 날짜 컬럼 포맷
+
+`bid_ntce_date`·`bid_clse_date` 등 D1 날짜 컬럼은 OpenAPI raw 값 그대로 **`YYYY-MM-DD`** (대시, 날짜만, 시간 없음 — 시간은 `bid_clse_tm` 별도 컬럼)로 저장. `client.ts`는 변환 없이 적재.
+
+- 비교 시 **포맷 변환 금지** — 대시 `YYYY-MM-DD`는 고정폭·zero-pad라 사전순=시간순. `>=`/`<=` 그대로 정확. 변환(대시 제거 등)하면 비교가 조용히 깨짐 (실제 from/to 버그 원인).
+- `<input type="date">` 입력값도 `YYYY-MM-DD` → 그대로 바인딩.
+- 빈값은 `""`로 저장 (NULL 아님 — `BidItem` 필드가 non-null string). 필터에서 `IS NULL OR = ''` 둘 다 처리.
