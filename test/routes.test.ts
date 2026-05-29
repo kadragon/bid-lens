@@ -31,6 +31,7 @@ const testEnv: Env = {
   DB: env.DB,
   OPEN_DATA_API_PROXY_URL: "",
   OPEN_DATA_X_API_KEY: "",
+  ADMIN_PASSWORD: "", // routes 테스트는 admin auth 미사용 — 빈 값 (secret 스캐너 오탐 방지)
 };
 
 beforeAll(async () => {

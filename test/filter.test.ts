@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isTargetBid } from "../src/collector/filter";
+import { DEFAULT_RULES, type FilterRules, isTargetBid } from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";
 
 function makeBid(overrides: Partial<BidItem> = {}): BidItem {
@@ -100,5 +100,100 @@ describe("isTargetBid", () => {
 
   it("업종명 빈 문자열 → false", () => {
     expect(isTargetBid(makeBid({ bidprcPsblIndstrytyNm: "" }))).toBe(false);
+  });
+});
+
+function rules(over: Partial<FilterRules> = {}): FilterRules {
+  return { ...DEFAULT_RULES, ...over };
+}
+
+describe("isTargetBid — 동적 규칙 주입", () => {
+  it("명시한 DEFAULT_RULES 결과는 무인자 호출과 동일", () => {
+    const bid = makeBid();
+    expect(isTargetBid(bid, DEFAULT_RULES)).toBe(isTargetBid(bid));
+  });
+
+  it("dmndInclude 빈 그룹 → 제약 비활성, '대학' 없어도 통과", () => {
+    expect(isTargetBid(makeBid({ dmndInsttNm: "행정안전부" }), rules({ dmndInclude: [] }))).toBe(
+      true,
+    );
+  });
+
+  it("industryInclude 빈 그룹 → 포함 제약 비활성, 비SW 업종도 통과", () => {
+    expect(
+      isTargetBid(
+        makeBid({ bidprcPsblIndstrytyNm: "건축설계및관련서비스업" }),
+        rules({ industryInclude: [] }),
+      ),
+    ).toBe(true);
+  });
+
+  it("industryInclude 빈 그룹이어도 industryExclude 는 적용 — 제외 세그먼트만 있으면 false", () => {
+    expect(
+      isTargetBid(
+        makeBid({ bidprcPsblIndstrytyNm: "디지털콘텐츠개발서비스사업" }),
+        rules({ industryInclude: [], industryExclude: ["디지털콘텐츠개발서비스사업"] }),
+      ),
+    ).toBe(false);
+  });
+
+  it("industryInclude 빈 그룹: clean 세그먼트 존재 시 통과 (per-segment 일관)", () => {
+    expect(
+      isTargetBid(
+        makeBid({ bidprcPsblIndstrytyNm: "디지털콘텐츠개발서비스사업, 소프트웨어개발공급업" }),
+        rules({ industryInclude: [], industryExclude: ["디지털콘텐츠개발서비스사업"] }),
+      ),
+    ).toBe(true);
+  });
+
+  it("bsnsDivEquals 빈 그룹 → 업무구분 제약 비활성, '물품'도 통과", () => {
+    expect(isTargetBid(makeBid({ bsnsDivNm: "물품" }), rules({ bsnsDivEquals: [] }))).toBe(true);
+  });
+
+  it("커스텀 industryInclude=['건축'] → 비SW 공고가 true로 뒤집힘", () => {
+    expect(
+      isTargetBid(
+        makeBid({ bidprcPsblIndstrytyNm: "건축설계및관련서비스업" }),
+        rules({ industryInclude: ["건축"] }),
+      ),
+    ).toBe(true);
+  });
+
+  it("커스텀 nameExclude 추가어 → 신규 제외 동작", () => {
+    expect(
+      isTargetBid(makeBid({ bidNtceNm: "AI 챗봇 구축" }), rules({ nameExclude: ["챗봇"] })),
+    ).toBe(false);
+  });
+
+  it("커스텀 dmndExclude 추가어 → 신규 제외 동작", () => {
+    expect(
+      isTargetBid(makeBid({ dmndInsttNm: "한국방송통신대학교" }), rules({ dmndExclude: ["방송"] })),
+    ).toBe(false);
+  });
+
+  it("커스텀 bsnsDivEquals=['물품'] → 물품 공고 통과, 용역 공고 탈락", () => {
+    const r = rules({ bsnsDivEquals: ["물품"] });
+    expect(isTargetBid(makeBid({ bsnsDivNm: "물품" }), r)).toBe(true);
+    expect(isTargetBid(makeBid({ bsnsDivNm: "용역" }), r)).toBe(false);
+  });
+
+  it("커스텀 멀티세그먼트: include 맞고 exclude 없는 세그먼트 존재 → true", () => {
+    // "건축설계서비스업"(건축O 리모델링X → 통과), "건축리모델링업"(건축O 리모델링O → 탈락)
+    expect(
+      isTargetBid(
+        makeBid({ bidprcPsblIndstrytyNm: "건축설계서비스업, 건축리모델링업" }),
+        rules({ industryInclude: ["건축"], industryExclude: ["리모델링"] }),
+      ),
+    ).toBe(true);
+  });
+
+  it("커스텀 멀티세그먼트: include 맞는 유일 세그먼트가 exclude도 매치 → false", () => {
+    // 세그먼트별 exclude 우선 — 같은 세그먼트가 둘 다 매치하면 탈락
+    expect(
+      isTargetBid(
+        makeBid({ bidprcPsblIndstrytyNm: "건축리모델링업" }),
+        rules({ industryInclude: ["건축"], industryExclude: ["리모델링"] }),
+      ),
+    ).toBe(false);
   });
 });

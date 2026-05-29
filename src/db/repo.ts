@@ -1,3 +1,4 @@
+import { DEFAULT_RULES, type FilterRules, RULE_TYPES, type RuleType } from "../collector/filter";
 import type { BidItem } from "../collector/types";
 
 export interface BidRow {
@@ -155,4 +156,95 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
     .all<BidRow>();
 
   return { rows: rows.results, total, page, pageSize };
+}
+
+export interface FilterRuleRow {
+  id: number;
+  rule_type: string;
+  pattern: string;
+  enabled: number;
+  created_at: string;
+}
+
+const RULE_TYPE_TO_KEY: Record<RuleType, keyof FilterRules> = {
+  dmnd_include: "dmndInclude",
+  dmnd_exclude: "dmndExclude",
+  bsns_div_equals: "bsnsDivEquals",
+  name_exclude: "nameExclude",
+  industry_include: "industryInclude",
+  industry_exclude: "industryExclude",
+};
+
+function isRuleType(v: string): v is RuleType {
+  return (RULE_TYPES as readonly string[]).includes(v);
+}
+
+/**
+ * 활성(enabled=1) 규칙을 그룹핑해 FilterRules 반환.
+ * 활성 규칙 0건(미시드 또는 전체 비활성) → DEFAULT_RULES 폴백 (fail-safe).
+ */
+export async function getFilterRules(db: D1Database): Promise<FilterRules> {
+  const res = await db
+    .prepare("SELECT rule_type, pattern FROM filter_rules WHERE enabled = 1")
+    .all<{ rule_type: string; pattern: string }>();
+
+  // 참조 반환 시 호출부 mutation 이 전역 상수 오염 → 복제.
+  if (res.results.length === 0) return structuredClone(DEFAULT_RULES);
+
+  const rules: FilterRules = {
+    dmndInclude: [],
+    dmndExclude: [],
+    bsnsDivEquals: [],
+    nameExclude: [],
+    industryInclude: [],
+    industryExclude: [],
+  };
+  for (const row of res.results) {
+    if (isRuleType(row.rule_type)) rules[RULE_TYPE_TO_KEY[row.rule_type]].push(row.pattern);
+  }
+  return rules;
+}
+
+/** 어드민용 — 비활성 포함 전체 규칙 (rule_type, id 순). */
+export async function listFilterRules(db: D1Database): Promise<FilterRuleRow[]> {
+  const res = await db
+    .prepare(
+      "SELECT id, rule_type, pattern, enabled, created_at FROM filter_rules ORDER BY rule_type, id",
+    )
+    .all<FilterRuleRow>();
+  return res.results;
+}
+
+export async function addFilterRule(
+  db: D1Database,
+  ruleType: string,
+  pattern: string,
+): Promise<void> {
+  if (!isRuleType(ruleType)) throw new Error(`invalid rule_type: ${ruleType}`);
+  const trimmed = pattern.trim();
+  if (trimmed === "") throw new Error("pattern must not be empty");
+
+  // 중복 (rule_type, pattern) → 새 행 만들지 않고 기존 행 재활성화 (idempotent add).
+  await db
+    .prepare(
+      "INSERT INTO filter_rules (rule_type, pattern, enabled, created_at) VALUES (?, ?, 1, ?) " +
+        "ON CONFLICT(rule_type, pattern) DO UPDATE SET enabled = 1",
+    )
+    .bind(ruleType, trimmed, new Date().toISOString())
+    .run();
+}
+
+export async function deleteFilterRule(db: D1Database, id: number): Promise<void> {
+  await db.prepare("DELETE FROM filter_rules WHERE id = ?").bind(id).run();
+}
+
+export async function setFilterRuleEnabled(
+  db: D1Database,
+  id: number,
+  enabled: boolean,
+): Promise<void> {
+  await db
+    .prepare("UPDATE filter_rules SET enabled = ? WHERE id = ?")
+    .bind(enabled ? 1 : 0, id)
+    .run();
 }

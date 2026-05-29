@@ -22,18 +22,20 @@ pre-commit (lefthook): typecheck + lint + test 순차 실행, 전부 green이어
 |---|---|---|
 | `OPEN_DATA_API_PROXY_URL` | secret | 나라장터 OpenAPI 프록시 베이스 URL |
 | `OPEN_DATA_X_API_KEY` | secret | x-api-key 헤더값 |
+| `ADMIN_PASSWORD` | secret | `/admin` 페이지 Basic Auth 비밀번호 (username 고정 `admin`). 미설정 시 `/admin` 503. |
 | `LOG_LEVEL` | var (wrangler.toml) | `"info"` |
 | `DB` | D1 바인딩 | `bid-lens` 데이터베이스 |
 
-**로컬:** `.dev.vars`에 secret 설정 (`.gitignore` 포함, 커밋 금지).
+**로컬:** `.dev.vars`에 secret 설정 (`.gitignore` 포함, 커밋 금지). `.dev.vars.example` 참고.
 
 ```
 # .dev.vars
 OPEN_DATA_API_PROXY_URL=https://...
 OPEN_DATA_X_API_KEY=...
+ADMIN_PASSWORD=...
 ```
 
-**원격:** `wrangler secret put OPEN_DATA_API_PROXY_URL` / `wrangler secret put OPEN_DATA_X_API_KEY`.
+**원격:** `wrangler secret put OPEN_DATA_API_PROXY_URL` / `wrangler secret put OPEN_DATA_X_API_KEY` / `wrangler secret put ADMIN_PASSWORD`.
 
 ## 배포
 
