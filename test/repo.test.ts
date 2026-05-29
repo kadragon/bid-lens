@@ -1,7 +1,16 @@
 import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { DEFAULT_RULES } from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";
-import { searchBids, upsertBids } from "../src/db/repo";
+import {
+  addFilterRule,
+  deleteFilterRule,
+  getFilterRules,
+  listFilterRules,
+  searchBids,
+  setFilterRuleEnabled,
+  upsertBids,
+} from "../src/db/repo";
 
 const TODAY = "2026-05-29";
 
@@ -81,5 +90,101 @@ describe("searchBids 마감 필터 (보존 정책)", () => {
     const nos = res.rows.map((r) => r.bid_ntce_no);
 
     expect(nos).toEqual(["b"]);
+  });
+});
+
+describe("filter_rules 시드 무결성", () => {
+  // 0002 마이그레이션 시드가 DEFAULT_RULES 와 동기인지 검증 (드리프트 방지).
+  // CRUD describe 의 destructive beforeEach 가 시드를 지우기 전에 실행되어야 함.
+  it("마이그레이션 시드 → getFilterRules 가 DEFAULT_RULES 와 동일", async () => {
+    expect(await getFilterRules(env.DB)).toEqual(DEFAULT_RULES);
+  });
+});
+
+describe("filter_rules CRUD", () => {
+  beforeEach(async () => {
+    await env.DB.prepare("DELETE FROM filter_rules").run();
+  });
+
+  it("활성 규칙 0건 → getFilterRules 가 DEFAULT_RULES 폴백", async () => {
+    expect(await getFilterRules(env.DB)).toEqual(DEFAULT_RULES);
+  });
+
+  it("add → getFilterRules 에 rule_type별 그룹핑 반영", async () => {
+    await addFilterRule(env.DB, "dmnd_include", "대학");
+    await addFilterRule(env.DB, "industry_include", "소프트웨어");
+    await addFilterRule(env.DB, "industry_include", "컴퓨터");
+
+    const r = await getFilterRules(env.DB);
+    expect(r.dmndInclude).toEqual(["대학"]);
+    expect(r.industryInclude).toEqual(["소프트웨어", "컴퓨터"]);
+    expect(r.dmndExclude).toEqual([]);
+  });
+
+  it("enabled=0 규칙은 그룹에서 빠짐 (다른 활성 규칙 있으면 폴백 안 함)", async () => {
+    await addFilterRule(env.DB, "dmnd_include", "대학");
+    await addFilterRule(env.DB, "dmnd_exclude", "병원");
+
+    const rows = await listFilterRules(env.DB);
+    const target = rows.find((x) => x.rule_type === "dmnd_exclude");
+    expect(target).toBeDefined();
+    if (!target) return;
+    await setFilterRuleEnabled(env.DB, target.id, false);
+
+    const r = await getFilterRules(env.DB);
+    expect(r.dmndInclude).toEqual(["대학"]);
+    expect(r.dmndExclude).toEqual([]);
+  });
+
+  it("모든 규칙 비활성 → DEFAULT_RULES 폴백", async () => {
+    await addFilterRule(env.DB, "dmnd_include", "대학");
+    const rows = await listFilterRules(env.DB);
+    const first = rows.find((x) => x.rule_type === "dmnd_include");
+    expect(first).toBeDefined();
+    if (!first) return;
+    await setFilterRuleEnabled(env.DB, first.id, false);
+
+    expect(await getFilterRules(env.DB)).toEqual(DEFAULT_RULES);
+  });
+
+  it("delete → listFilterRules 에서 제거", async () => {
+    await addFilterRule(env.DB, "name_exclude", "유지보수");
+    const rows = await listFilterRules(env.DB);
+    const target = rows.find((x) => x.rule_type === "name_exclude");
+    expect(target).toBeDefined();
+    if (!target) return;
+    await deleteFilterRule(env.DB, target.id);
+
+    expect(await listFilterRules(env.DB)).toHaveLength(0);
+  });
+
+  it("잘못된 rule_type → 거부", async () => {
+    await expect(addFilterRule(env.DB, "bogus_type", "x")).rejects.toThrow();
+  });
+
+  it("빈/공백 pattern → 거부", async () => {
+    await expect(addFilterRule(env.DB, "dmnd_include", "   ")).rejects.toThrow();
+  });
+
+  it("중복 (rule_type, pattern) add → 행 1개만 (UNIQUE)", async () => {
+    await addFilterRule(env.DB, "dmnd_include", "대학");
+    await addFilterRule(env.DB, "dmnd_include", "대학");
+    const matches = (await listFilterRules(env.DB)).filter(
+      (r) => r.rule_type === "dmnd_include" && r.pattern === "대학",
+    );
+    expect(matches).toHaveLength(1);
+  });
+
+  it("비활성 패턴 재add → 재활성화 (ON CONFLICT DO UPDATE enabled=1)", async () => {
+    await addFilterRule(env.DB, "dmnd_include", "대학"); // 활성 규칙 — DEFAULT 폴백 방지
+    await addFilterRule(env.DB, "name_exclude", "유지보수");
+    const target = (await listFilterRules(env.DB)).find((r) => r.pattern === "유지보수");
+    expect(target).toBeDefined();
+    if (!target) return;
+    await setFilterRuleEnabled(env.DB, target.id, false);
+    expect((await getFilterRules(env.DB)).nameExclude).not.toContain("유지보수");
+
+    await addFilterRule(env.DB, "name_exclude", "유지보수");
+    expect((await getFilterRules(env.DB)).nameExclude).toContain("유지보수");
   });
 });

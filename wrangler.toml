@@ -18,3 +18,4 @@ LOG_LEVEL = "info"
 # Secrets (set via `wrangler secret put`):
 # OPEN_DATA_API_PROXY_URL
 # OPEN_DATA_X_API_KEY
+# ADMIN_PASSWORD          # /admin Basic Auth (username "admin"); unset -> /admin returns 503
