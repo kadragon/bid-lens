@@ -10,7 +10,7 @@ function bid(over: Partial<BidItem> & Pick<BidItem, "bidNtceNo">): BidItem {
     bidNtceOrd: "00",
     bidNtceNm: "테스트 공고",
     bidNtceSttusNm: "공고중",
-    bidNtceDate: "202605010900",
+    bidNtceDate: "2026-05-01",
     bsnsDivNm: "용역",
     ntceInsttNm: "발주기관",
     dmndInsttNm: "테스트대학교",

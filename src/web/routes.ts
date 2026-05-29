@@ -38,8 +38,9 @@ webRouter.get("/", async (c) => {
   const from = c.req.query("from") ?? "";
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
-  // 체크박스 미체크 시 쿼리 파라미터 자체가 없음 → 부재=마감 제외(기본)
-  const includeClosed = c.req.query("includeClosed") !== undefined;
+  // 체크박스 value="1"만 전송, 미체크 시 파라미터 부재 → 기본 마감 제외. "1"/"true"만 포함.
+  const includeClosed =
+    c.req.query("includeClosed") === "1" || c.req.query("includeClosed") === "true";
   const today = kstDateIso(new Date());
 
   // form input·저장값 모두 YYYY-MM-DD → 변환 없이 그대로 비교 (대시 사전순=시간순)
@@ -59,7 +60,8 @@ webRouter.get("/api/bids", async (c) => {
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
   const pageSize = Math.min(100, Math.max(1, Number(c.req.query("pageSize") ?? "20")));
-  const includeClosed = c.req.query("includeClosed") !== undefined;
+  const includeClosed =
+    c.req.query("includeClosed") === "1" || c.req.query("includeClosed") === "true";
   const today = kstDateIso(new Date());
 
   const result = await searchBids(

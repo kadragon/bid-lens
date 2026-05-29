@@ -30,7 +30,7 @@ export interface SearchParams {
   pageSize?: number;
   /** true면 마감 지난 공고 포함. 기본 false → 마감 공고 제외. */
   includeClosed?: boolean;
-  /** 마감 기준일 YYYY-MM-DD (KST). includeClosed=false일 때만 사용. */
+  /** 마감 기준일 YYYY-MM-DD (KST). includeClosed=false일 때만 사용. 생략 시 마감 필터 비활성. */
   today?: string;
 }
 
