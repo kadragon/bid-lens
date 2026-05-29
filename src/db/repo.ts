@@ -47,6 +47,11 @@ function parseAmount(v: string): number | null {
   return Number.isNaN(n) || n === 0 ? null : n;
 }
 
+/** LIKE 메타문자(\ % _)를 이스케이프 — 사용자 입력을 리터럴로 매칭. `ESCAPE '\'` 절과 함께 사용. */
+function escapeLike(v: string): string {
+  return v.replace(/[\\%_]/g, "\\$&");
+}
+
 export async function upsertBids(db: D1Database, items: BidItem[]): Promise<number> {
   if (items.length === 0) return 0;
 
@@ -116,12 +121,12 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
   const bindings: (string | number)[] = [];
 
   if (params.q) {
-    conditions.push("bid_ntce_nm LIKE ?");
-    bindings.push(`%${params.q}%`);
+    conditions.push("bid_ntce_nm LIKE ? ESCAPE '\\'");
+    bindings.push(`%${escapeLike(params.q)}%`);
   }
   if (params.dmnd) {
-    conditions.push("dmnd_instt_nm LIKE ?");
-    bindings.push(`%${params.dmnd}%`);
+    conditions.push("dmnd_instt_nm LIKE ? ESCAPE '\\'");
+    bindings.push(`%${escapeLike(params.dmnd)}%`);
   }
   if (params.from) {
     conditions.push("bid_ntce_date >= ?");

@@ -40,6 +40,7 @@ TypeScript strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) · 
 4. **`main` 직접 커밋 금지** — 항상 브랜치 먼저 (`<type>/<slug>`). 강제: git 규칙.
 5. **secret은 코드/git 금지** — `.dev.vars`(로컬)·wrangler secret(원격)만. 강제: `.gitignore` + `.claudeignore`.
 6. **Agent Integrity** — 직접 확인 안 한 값은 추측 금지, `[unknown — read {source}]` 표기.
+7. **`filter_rules` 시드(`migrations/0002`) ↔ `DEFAULT_RULES`(`src/collector/filter.ts`) 동기** — 드리프트 금지. 강제: `test/seed.test.ts`(시드 행 존재 + `getFilterRules` == `DEFAULT_RULES`, 폴백 마스킹 차단).
 
 ## Commands
 

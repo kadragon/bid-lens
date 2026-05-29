@@ -231,7 +231,6 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
       padding: 2px 8px;
       border-radius: var(--r-sm);
       border: 1px solid var(--hairline);
-      margin-top: 4px;
       white-space: nowrap;
     }
     .badge-default { background: var(--surface-soft); color: var(--body); }
