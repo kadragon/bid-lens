@@ -93,13 +93,32 @@ describe("searchBids 마감 필터 (보존 정책)", () => {
   });
 });
 
-describe("filter_rules 시드 무결성", () => {
-  // 0002 마이그레이션 시드가 DEFAULT_RULES 와 동기인지 검증 (드리프트 방지).
-  // CRUD describe 의 destructive beforeEach 가 시드를 지우기 전에 실행되어야 함.
-  it("마이그레이션 시드 → getFilterRules 가 DEFAULT_RULES 와 동일", async () => {
-    expect(await getFilterRules(env.DB)).toEqual(DEFAULT_RULES);
+describe("searchBids LIKE 와일드카드 이스케이프", () => {
+  it("q 의 % 는 리터럴로 매칭 (와일드카드 의미 박탈)", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "lit", bidNtceNm: "할인 50% 행사" }),
+      bid({ bidNtceNo: "other", bidNtceNm: "할인 5000원 행사" }),
+    ]);
+
+    const res = await searchBids(env.DB, { q: "50%" });
+
+    expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["lit"]);
+    expect(res.total).toBe(1);
+  });
+
+  it("dmnd 의 _ 는 리터럴로 매칭", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "u", dmndInsttNm: "A_대학교" }),
+      bid({ bidNtceNo: "v", dmndInsttNm: "AX대학교" }),
+    ]);
+
+    const res = await searchBids(env.DB, { dmnd: "A_대" });
+
+    expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["u"]);
   });
 });
+
+// filter_rules 시드 무결성 → test/seed.test.ts (order-independent, 폴백 마스킹 차단).
 
 describe("filter_rules CRUD", () => {
   beforeEach(async () => {
