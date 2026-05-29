@@ -25,11 +25,15 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function safeUrl(url: string): string {
+  return /^https?:\/\//i.test(url) ? escapeHtml(url) : "#";
+}
+
 function renderStatusBadge(status: string | null): string {
   if (!status) return "";
   let cls = "badge-default";
-  if (/마감|취소|종료/.test(status)) cls = "badge-closed";
-  else if (/공고|진행/.test(status)) cls = "badge-open";
+  if (/마감|취소|종료|개찰/.test(status)) cls = "badge-closed";
+  else if (/공고중(?!지)|진행/.test(status)) cls = "badge-open";
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
 
@@ -116,9 +120,8 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
       font-family: inherit;
       color: var(--ink);
       background: var(--canvas);
-      outline: none;
     }
-    form input:focus { border-color: var(--info-border); }
+    form input:focus { border-color: var(--info-border); outline: 2px solid var(--info-border); outline-offset: 2px; }
     form input[name="q"] { flex: 2; min-width: 150px; }
     form input[name="dmnd"] { flex: 1.5; min-width: 120px; }
     form input[type="date"] { min-width: 130px; }
@@ -139,6 +142,7 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
     .btn-secondary {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       padding: 0 16px;
       height: 44px;
       background: var(--canvas);
@@ -158,7 +162,7 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
       letter-spacing: 0.16px;
       margin-bottom: 12px;
     }
-    .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .scroll-x { overflow-x: auto; }
     .table-wrap {
       border: 1px solid var(--hairline);
       border-radius: var(--r-md);
@@ -281,7 +285,7 @@ function renderRow(row: BidRow): string {
   <td class="title-cell">
     ${
       row.bid_ntce_url
-        ? `<a href="${escapeHtml(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
+        ? `<a href="${safeUrl(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
         : escapeHtml(row.bid_ntce_nm ?? "-")
     }
     ${renderStatusBadge(row.bid_ntce_sttus_nm)}
