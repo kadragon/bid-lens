@@ -11,3 +11,6 @@ pnpm-lock.yaml
 # Secrets — never scan
 .dev.vars
 .dev.vars.*
+
+# Workspace config (local-only)
+pnpm-workspace.yaml

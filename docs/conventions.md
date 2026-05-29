@@ -4,7 +4,7 @@ Biome/tsconfig가 강제하는 규칙은 여기 중복 안 함. 에이전트가 
 
 ## 수집 필터 — `isTargetBid`
 
-`src/collector/filter.ts`. **변경 전 `test/filter.test.ts` Red→Green 필수.** my-automator IsTargetBid 포팅.
+`src/collector/filter.ts`. **변경 전 `test/filter.test.ts` Red→Green 필수.**
 
 순서대로 AND 조건:
 
@@ -21,7 +21,7 @@ Biome/tsconfig가 강제하는 규칙은 여기 중복 안 함. 에이전트가 
 
 ## TDD 규칙
 
-- 필터 규칙 변경 → `filter.test.ts` Red 먼저, 실패 확인 후 Green 구현. **테스트 수정 금지.**
+- 필터 규칙 변경 → `filter.test.ts`에 새 실패 케이스 추가(Red), 확인 후 Green 구현. **기존 케이스 수정 금지.**
 - D1 repo 변경 → `test/repo.test.ts` 통합 테스트 추가 (`@cloudflare/vitest-pool-workers`로 실제 D1).
 - 모킹 기본 금지 — 통합 테스트 우선. 외부 IO/비결정적 의존만 모킹.
 

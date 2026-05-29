@@ -37,6 +37,14 @@
     }
   },
   "files": {
-    "ignore": ["node_modules", "dist", ".wrangler", "*.d.ts"]
+    "ignore": [
+      "node_modules",
+      "dist",
+      ".wrangler",
+      "*.d.ts",
+      ".agents",
+      ".claude",
+      ".antigravitycli"
+    ]
   }
 }

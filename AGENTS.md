@@ -10,6 +10,7 @@ Cloudflare Workers (TypeScript, Hono) + D1. Cron UTC 00:00 (KST 09:00). 서버�
 | `docs/architecture.md` | 모듈 경계·데이터 흐름·D1 스키마 변경 전 |
 | `docs/conventions.md` | 필터 규칙·TS strict·TDD 규칙 작업 전 |
 | `docs/runbook.md` | 빌드/테스트/배포 명령·env/secret·장애 대응 |
+| `DESIGN.md` | 웹 UI 컴포넌트·색상·타이포그래피 디자인 작업 전 |
 
 ## Stack
 
@@ -33,7 +34,7 @@ TypeScript strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) · 
 
 위반 시 커밋 차단. 각 항목은 기계적 강제 수단 보유.
 
-1. **필터 변경은 `test/filter.test.ts` Red→Green** — `isTargetBid` 규칙 변경 전 테스트 먼저. 강제: vitest + lefthook.
+1. **필터 변경은 `test/filter.test.ts` Red→Green** — `isTargetBid` 규칙 변경 전 테스트 먼저. 강제: pre-commit (vitest 전체 suite — filter.test.ts 포함).
 2. **D1 upsert PK `(bid_ntce_no, bid_ntce_ord)`** — 중복 방지, 절대 깨지 말 것. 강제: 스키마 PK 제약.
 3. **pre-commit green 필수** — typecheck + lint + test 전부 통과. 강제: `lefthook.yml`.
 4. **`main` 직접 커밋 금지** — 항상 브랜치 먼저 (`<type>/<slug>`). 강제: git 규칙.
@@ -46,14 +47,16 @@ TypeScript strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) · 
 pnpm dev          # 로컬 (wrangler dev)
 pnpm test         # vitest run
 pnpm typecheck    # tsc --noEmit
-pnpm lint[:fix]   # biome check [--write] .
-pnpm migrate:local|remote   # D1 마이그레이션
+pnpm lint         # biome check .
+pnpm lint:fix     # biome check --write .
+pnpm migrate:local    # D1 마이그레이션 — 로컬
+pnpm migrate:remote   # D1 마이그레이션 — 배포
 pnpm deploy       # wrangler deploy
 ```
 
 ## Delegation
 
-Solo 개발, fresh 리포. 상시 에이전트/오케스트레이터 **없음**. 같은 위임 유형 3× 반복 시 `.claude/agents/` 역할 생성 (전역 CLAUDE.md 규칙). 광범위 작업 → 서브에이전트, 외과적 → 직접.
+Solo 개발, fresh 리포. 상시 에이전트/오케스트레이터 **없음**. 같은 위임 유형 3× 반복 시 `.agents/` 역할 생성 (전역 CLAUDE.md 규칙). 광범위 작업 → 서브에이전트, 외과적 → 직접.
 
 ## Token Economy
 
