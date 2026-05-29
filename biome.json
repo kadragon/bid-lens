@@ -1,7 +1,11 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
-  "organizeImports": {
-    "enabled": true
+  "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
@@ -14,12 +18,12 @@
       },
       "style": {
         "noNonNullAssertion": "error",
-        "useConst": "error",
-        "noVar": "error"
+        "useConst": "error"
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noConsole": "off"
+        "noConsole": "off",
+        "noVar": "error"
       }
     }
   },
@@ -37,14 +41,15 @@
     }
   },
   "files": {
-    "ignore": [
-      "node_modules",
-      "dist",
-      ".wrangler",
-      "*.d.ts",
-      ".agents",
-      ".claude",
-      ".antigravitycli"
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.wrangler",
+      "!**/*.d.ts",
+      "!**/.agents",
+      "!**/.claude",
+      "!**/.antigravitycli"
     ]
   }
 }

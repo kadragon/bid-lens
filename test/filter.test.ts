@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifySegments,
   DEFAULT_RULES,
   type FilterRules,
-  classifySegments,
   isTargetBid,
 } from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";

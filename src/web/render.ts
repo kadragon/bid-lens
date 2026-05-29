@@ -1,4 +1,4 @@
-import { type FilterRules, classifySegments } from "../collector/filter";
+import { classifySegments, type FilterRules } from "../collector/filter";
 import type { BidRow, SearchResult } from "../db/repo";
 
 /** 배정예산(원) → X.X억원 */
