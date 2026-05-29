@@ -31,6 +31,10 @@ beforeEach(async () => {
   await env.DB.prepare("DELETE FROM filter_rules").run();
 });
 
+beforeEach(async () => {
+  await env.DB.prepare("DELETE FROM login_attempts").run();
+});
+
 describe("admin auth", () => {
   it("includes SVG favicon link in head", () => {
     const html = renderAdminPage([]);
@@ -165,6 +169,59 @@ describe("admin rule mutations", () => {
     expect(on.status).toBe(302);
     const afterOn = await getFilterRules(env.DB);
     expect(afterOn.dmndExclude).toContain("병원");
+  });
+
+  it("sets admin_auth cookie on successful login", async () => {
+    const res = await adminRouter.request("/", { headers: { Authorization: AUTH } }, testEnv);
+    expect(res.status).toBe(200);
+    const setCookie = res.headers.get("Set-Cookie");
+    expect(setCookie).toMatch(/admin_auth=/);
+  });
+
+  it("blocks access after MAX_FAILURES wrong-credential attempts from same IP", async () => {
+    const failAuth = `Basic ${btoa("admin:wrong")}`;
+    for (let i = 0; i < 10; i++) {
+      await adminRouter.request(
+        "/",
+        { headers: { Authorization: failAuth, "CF-Connecting-IP": "1.2.3.4" } },
+        testEnv,
+      );
+    }
+    const res = await adminRouter.request(
+      "/",
+      { headers: { Authorization: AUTH, "CF-Connecting-IP": "1.2.3.4" } },
+      testEnv,
+    );
+    expect(res.status).toBe(429);
+  });
+
+  it("does not count missing auth header as a failure", async () => {
+    for (let i = 0; i < 10; i++) {
+      await adminRouter.request("/", { headers: { "CF-Connecting-IP": "2.3.4.5" } }, testEnv);
+    }
+    const res = await adminRouter.request(
+      "/",
+      { headers: { "CF-Connecting-IP": "2.3.4.5" } },
+      testEnv,
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("different IPs have independent failure counters", async () => {
+    const failAuth = `Basic ${btoa("admin:wrong")}`;
+    for (let i = 0; i < 10; i++) {
+      await adminRouter.request(
+        "/",
+        { headers: { Authorization: failAuth, "CF-Connecting-IP": "3.3.3.3" } },
+        testEnv,
+      );
+    }
+    const res = await adminRouter.request(
+      "/",
+      { headers: { Authorization: AUTH, "CF-Connecting-IP": "4.4.4.4" } },
+      testEnv,
+    );
+    expect(res.status).toBe(200);
   });
 
   it("blocks cross-origin POST and allows same-origin POST", async () => {

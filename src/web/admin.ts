@@ -1,15 +1,77 @@
 import { Hono } from "hono";
-import { basicAuth } from "hono/basic-auth";
-import { addFilterRule, deleteFilterRule, listFilterRules, setFilterRuleEnabled } from "../db/repo";
+import { getCookie, setCookie } from "hono/cookie";
+import {
+  addFilterRule,
+  clearLoginFailures,
+  countRecentFailures,
+  deleteFilterRule,
+  listFilterRules,
+  pruneOldLoginAttempts,
+  recordLoginAttempt,
+  setFilterRuleEnabled,
+} from "../db/repo";
 import type { Env } from "../types";
 import { renderAdminPage } from "./render-admin";
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
 
-// 모든 /admin* (GET 페이지 + POST 변경) Basic Auth 게이트. 비밀번호 미설정 시 fail-closed.
-// CSRF 방어는 Origin host 검사가 담당 (Basic Auth 자격증명은 브라우저가 캐시해 자동 첨부될 수 있어
-// 단독으로는 CSRF 미방어). 변경(non-GET) 요청에서 Origin 있고 host 불일치/파싱불가 → 403.
-// Origin 없는 변경 요청은 통과: 비브라우저 클라이언트엔 ambient credential 없고, 브라우저는 POST에 항상 Origin 첨부.
+// 같은 isolate 내 재사용 — 비밀번호 변경 시 자동 무효 (키가 다르면 캐시 미스)
+let _fpCache: string | undefined;
+let _fpCacheKey: string | undefined;
+
+/** 브라우저가 admin_auth 쿠키 비교에 사용할 SHA-256 핑거프린트 (44자 고정 base64). */
+export async function passwordFingerprint(password: string): Promise<string> {
+  if (_fpCache !== undefined && _fpCacheKey === password) return _fpCache;
+  const data = new TextEncoder().encode(`bid-lens:admin:${password}`);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  const result = btoa(String.fromCharCode(...new Uint8Array(hash)));
+  _fpCache = result;
+  _fpCacheKey = password;
+  return result;
+}
+
+/**
+ * XOR 상수 시간 비교 — 동일 길이 입력(44자 핑거프린트)에서 완전 상수 시간.
+ * 길이 다른 입력도 안전: length XOR 가 diff 에 누적되어 false 반환.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const aBytes = enc.encode(a);
+  const bBytes = enc.encode(b);
+  const maxLen = Math.max(aBytes.length, bBytes.length);
+  const aPad = new Uint8Array(maxLen);
+  const bPad = new Uint8Array(maxLen);
+  aPad.set(aBytes);
+  bPad.set(bBytes);
+  let diff = aBytes.length ^ bBytes.length;
+  for (let i = 0; i < maxLen; i++) diff |= (aPad[i] ?? 0) ^ (bPad[i] ?? 0);
+  return diff === 0;
+}
+
+const LOGIN_WINDOW_SECONDS = 15 * 60;
+const MAX_FAILURES = 10;
+const COOKIE_MAX_AGE = 86400; // 24h
+
+const COOKIE_OPTS = {
+  path: "/",
+  httpOnly: true,
+  secure: true,
+  sameSite: "Lax",
+  maxAge: COOKIE_MAX_AGE,
+} as const;
+
+/**
+ * 모든 /admin* 요청 게이트.
+ *
+ * 1. ADMIN_PASSWORD 미설정 → 503
+ * 2. 비-GET: Origin host 검사 (CSRF)
+ * 3. 쿠키 패스트패스: admin_auth 유효 → 쿠키 갱신 후 next()
+ * 4. Authorization 헤더 없음 → 401 챌린지 (실패 카운트 없음)
+ * 5. IP 레이트리밋: 15분 내 10회 실패 → 429
+ * 6. Basic 자격증명 파싱 (malformed → 401 + 카운트)
+ * 7. 핑거프린트 비교 (고정 44자 → 상수 시간)
+ * 8. 실패 → 401 + 기록 / 성공 → 카운트 초기화 + 쿠키 설정 + next()
+ */
 adminRouter.use("*", async (c, next) => {
   if (!c.env.ADMIN_PASSWORD) return c.text("admin password not configured", 503);
 
@@ -32,7 +94,68 @@ adminRouter.use("*", async (c, next) => {
     }
   }
 
-  return basicAuth({ username: "admin", password: c.env.ADMIN_PASSWORD })(c, next);
+  const expectedFp = await passwordFingerprint(c.env.ADMIN_PASSWORD);
+
+  // 쿠키 패스트패스 — DB 쿼리 없이 인증 완료
+  const cookieVal = getCookie(c, "admin_auth");
+  if (cookieVal && timingSafeEqual(cookieVal, expectedFp)) {
+    setCookie(c, "admin_auth", expectedFp, COOKIE_OPTS);
+    return next();
+  }
+
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader) {
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "WWW-Authenticate": 'Basic realm="bid-lens admin"' },
+    });
+  }
+
+  const ip = c.req.header("CF-Connecting-IP") ?? c.req.header("X-Forwarded-For") ?? "unknown";
+  const now = Math.floor(Date.now() / 1000);
+  const since = now - LOGIN_WINDOW_SECONDS;
+
+  await pruneOldLoginAttempts(c.env.DB, since);
+
+  const failures = await countRecentFailures(c.env.DB, ip, since);
+  if (failures >= MAX_FAILURES) {
+    return c.text("Too many failed login attempts. Try again later.", 429);
+  }
+
+  // Basic 자격증명 파싱 — malformed base64 → 실패 기록 후 401
+  let username = "";
+  let inputFp = "";
+  try {
+    if (authHeader.startsWith("Basic ")) {
+      const decoded = atob(authHeader.slice(6));
+      const colon = decoded.indexOf(":");
+      if (colon !== -1) {
+        username = decoded.slice(0, colon);
+        inputFp = await passwordFingerprint(decoded.slice(colon + 1));
+      }
+    }
+  } catch {
+    await recordLoginAttempt(c.env.DB, ip, false, now);
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "WWW-Authenticate": 'Basic realm="bid-lens admin"' },
+    });
+  }
+
+  // username 은 공개 정보 — 타이밍 안전 불필요. 패스워드만 핑거프린트 비교.
+  const valid = username === "admin" && timingSafeEqual(inputFp, expectedFp);
+
+  if (!valid) {
+    await recordLoginAttempt(c.env.DB, ip, false, now);
+    return new Response("Unauthorized", {
+      status: 401,
+      headers: { "WWW-Authenticate": 'Basic realm="bid-lens admin"' },
+    });
+  }
+
+  await clearLoginFailures(c.env.DB, ip);
+  setCookie(c, "admin_auth", expectedFp, COOKIE_OPTS);
+  return next();
 });
 
 adminRouter.get("/", async (c) => {
@@ -49,7 +172,21 @@ adminRouter.post("/rules", async (c) => {
   } catch (err) {
     return c.text(err instanceof Error ? err.message : "invalid input", 400);
   }
-  return c.redirect("/admin");
+
+  const referer = c.req.header("Referer");
+  let redirectTo = "/admin";
+  if (referer) {
+    try {
+      const refUrl = new URL(referer);
+      const reqUrl = new URL(c.req.url);
+      if (refUrl.host === reqUrl.host && !refUrl.pathname.startsWith("/admin")) {
+        redirectTo = refUrl.pathname + refUrl.search;
+      }
+    } catch {
+      /* referer 파싱 실패 → 기본 /admin */
+    }
+  }
+  return c.redirect(redirectTo);
 });
 
 adminRouter.post("/rules/:id/delete", async (c) => {
