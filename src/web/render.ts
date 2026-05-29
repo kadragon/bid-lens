@@ -54,6 +54,7 @@ interface SearchQuery {
   from: string;
   to: string;
   page: number;
+  includeClosed: boolean;
 }
 
 export function renderPage(result: SearchResult, query: SearchQuery): string {
@@ -166,6 +167,18 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
       cursor: pointer;
       white-space: nowrap;
     }
+    .check-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 44px;
+      padding: 0 8px;
+      font-size: 14px;
+      color: var(--body);
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .check-inline input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
     .meta {
       font-size: 13px;
       font-weight: 500;
@@ -274,6 +287,10 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
       <input name="from" type="date" value="${escapeHtml(query.from)}" title="공고일 시작" />
       <input name="to" type="date" value="${escapeHtml(query.to)}" title="공고일 종료" />
+      <label class="check-inline" title="마감일이 지난 공고도 표시">
+        <input type="checkbox" name="includeClosed" value="1"${query.includeClosed ? " checked" : ""} />
+        마감 포함
+      </label>
       <button type="submit" class="btn-primary">검색</button>
       <a href="/" class="btn-secondary">초기화</a>
     </form>
@@ -335,6 +352,7 @@ function renderPagination(
     if (query.dmnd) params.set("dmnd", query.dmnd);
     if (query.from) params.set("from", query.from);
     if (query.to) params.set("to", query.to);
+    if (query.includeClosed) params.set("includeClosed", "1");
     params.set("page", String(p));
     return `/?${params.toString()}`;
   };
