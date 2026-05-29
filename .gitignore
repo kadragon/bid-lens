@@ -6,3 +6,7 @@ dist/
 .env
 pnpm-workspace.yaml
 *.local
+.antigravitycli/
+.playwright-mcp/
+desktop.png
+mobile.png

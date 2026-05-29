@@ -25,6 +25,18 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function safeUrl(url: string): string {
+  return /^https?:\/\//i.test(url) ? escapeHtml(url) : "#";
+}
+
+function renderStatusBadge(status: string | null): string {
+  if (!status) return "";
+  let cls = "badge-default";
+  if (/마감|취소|종료|개찰/.test(status)) cls = "badge-closed";
+  else if (/공고중(?!지)|진행/.test(status)) cls = "badge-open";
+  return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
+}
+
 interface SearchQuery {
   q: string;
   dmnd: string;
@@ -35,9 +47,7 @@ interface SearchQuery {
 
 export function renderPage(result: SearchResult, query: SearchQuery): string {
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
-
   const rows = result.rows.map((row) => renderRow(row)).join("\n");
-
   const pagination = renderPagination(query, result.page, totalPages, result.total);
 
   return `<!DOCTYPE html>
@@ -46,65 +56,223 @@ export function renderPage(result: SearchResult, query: SearchQuery): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>bid-lens — 대학 SW 용역 입찰공고</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet" />
   <style>
+    :root {
+      --ink: #181d26;
+      --body: #333840;
+      --muted: #41454d;
+      --hairline: #dddddd;
+      --canvas: #ffffff;
+      --surface-soft: #f8fafc;
+      --primary: #181d26;
+      --primary-active: #0d1218;
+      --link: #1b61c9;
+      --link-active: #1a3866;
+      --info-border: #458fff;
+      --success: #006400;
+      --success-bg: #f0faf0;
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 12px;
+    }
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; font-size: 14px; margin: 0; background: #f8f9fa; color: #212529; }
-    .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-    h1 { font-size: 1.4rem; margin-bottom: 1rem; }
-    form { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; background: #fff; padding: 1rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-    form input { border: 1px solid #dee2e6; border-radius: 4px; padding: 0.4rem 0.6rem; font-size: 13px; }
+    body {
+      font-family: 'Inter', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      line-height: 1.5;
+      margin: 0;
+      background: var(--canvas);
+      color: var(--body);
+    }
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 48px 48px 96px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.2;
+      color: var(--ink);
+      margin: 0 0 32px;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+      background: var(--canvas);
+      padding: 24px;
+      border-radius: var(--r-lg);
+      border: 1px solid var(--hairline);
+    }
+    form input {
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-sm);
+      padding: 0 16px;
+      height: 44px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--ink);
+      background: var(--canvas);
+    }
+    form input:focus { border-color: var(--info-border); outline: 2px solid var(--info-border); outline-offset: 2px; }
     form input[name="q"] { flex: 2; min-width: 150px; }
     form input[name="dmnd"] { flex: 1.5; min-width: 120px; }
-    form input[type="date"] { min-width: 120px; }
-    form button { padding: 0.4rem 1rem; background: #0d6efd; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-    form button:hover { background: #0b5ed7; }
-    .meta { font-size: 12px; color: #6c757d; margin-bottom: 0.5rem; }
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-    th { background: #343a40; color: #fff; text-align: left; padding: 0.6rem 0.8rem; font-size: 12px; white-space: nowrap; }
-    td { padding: 0.5rem 0.8rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; font-size: 13px; }
+    form input[type="date"] { min-width: 130px; }
+    .btn-primary {
+      padding: 0 24px;
+      height: 44px;
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--r-lg);
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-primary:active { background: var(--primary-active); }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      height: 44px;
+      background: var(--canvas);
+      color: var(--ink);
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-lg);
+      font-size: 14px;
+      font-family: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .meta {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.16px;
+      margin-bottom: 12px;
+    }
+    .scroll-x { overflow-x: auto; }
+    .table-wrap {
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-md);
+      overflow: hidden;
+      background: var(--canvas);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--hairline);
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--hairline);
+      vertical-align: top;
+      font-size: 13px;
+      color: var(--body);
+    }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8f9fa; }
-    .title-cell { max-width: 320px; }
-    .title-cell a { color: #0d6efd; text-decoration: none; font-weight: 500; }
-    .title-cell a:hover { text-decoration: underline; }
+    tr:hover td { background: var(--surface-soft); }
+    .title-cell { max-width: 340px; }
+    .title-cell a {
+      color: var(--link);
+      text-decoration: none;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .title-cell a:active { color: var(--link-active); }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--hairline);
+      margin-top: 4px;
+      white-space: nowrap;
+    }
+    .badge-default { background: var(--surface-soft); color: var(--body); }
+    .badge-closed { background: var(--surface-soft); color: var(--muted); }
+    .badge-open { background: var(--success-bg); color: var(--success); border-color: #b7e0b7; }
+    .label { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
     .amount { white-space: nowrap; }
     .clse-date { white-space: nowrap; }
-    .pagination { display: flex; gap: 0.4rem; margin-top: 1rem; justify-content: center; flex-wrap: wrap; }
-    .pagination a, .pagination span { padding: 0.3rem 0.7rem; border-radius: 4px; border: 1px solid #dee2e6; font-size: 13px; text-decoration: none; color: #212529; }
-    .pagination a:hover { background: #e9ecef; }
-    .pagination .active { background: #0d6efd; color: #fff; border-color: #0d6efd; }
-    .no-results { text-align: center; padding: 3rem; color: #6c757d; }
-    .label { font-size: 11px; color: #6c757d; margin-bottom: 2px; }
+    .pagination {
+      display: flex;
+      gap: 4px;
+      margin-top: 24px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .pagination a, .pagination span {
+      padding: 6px 12px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--hairline);
+      font-size: 13px;
+      text-decoration: none;
+      color: var(--body);
+      line-height: 1.4;
+    }
+    .pagination a:hover { background: var(--surface-soft); }
+    .pagination .active { background: var(--ink); color: #ffffff; border-color: var(--ink); }
+    .no-results { text-align: center; padding: 64px 24px; color: var(--muted); font-size: 14px; }
+    @media (max-width: 768px) {
+      .container { padding: 24px 16px 48px; }
+      h1 { font-size: 22px; margin-bottom: 24px; }
+      form { padding: 16px; flex-direction: column; }
+      form input, .btn-primary, .btn-secondary { width: 100%; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>📋 대학 SW 용역 입찰공고</h1>
+    <h1>대학 SW 용역 입찰공고</h1>
     <form method="GET" action="/">
       <input name="q" type="text" placeholder="공고명 검색" value="${escapeHtml(query.q)}" />
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
       <input name="from" type="date" value="${escapeHtml(query.from)}" title="마감일 시작" />
       <input name="to" type="date" value="${escapeHtml(query.to)}" title="마감일 종료" />
-      <button type="submit">검색</button>
-      <a href="/" style="align-self:center;font-size:12px;color:#6c757d;text-decoration:none">초기화</a>
+      <button type="submit" class="btn-primary">검색</button>
+      <a href="/" class="btn-secondary">초기화</a>
     </form>
     <div class="meta">총 ${result.total.toLocaleString("ko-KR")}건 · ${result.page}/${totalPages} 페이지</div>
     ${
       result.rows.length === 0
         ? '<div class="no-results">결과가 없습니다.</div>'
-        : `<table>
-      <thead>
-        <tr>
-          <th>공고명</th>
-          <th>수요기관</th>
-          <th>계약방법</th>
-          <th>배정예산</th>
-          <th>마감일시</th>
-          <th>공고일</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
+        : `<div class="scroll-x"><div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>공고명</th>
+            <th>수요기관</th>
+            <th>계약방법</th>
+            <th>배정예산</th>
+            <th>마감일시</th>
+            <th>공고일</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div></div>
     ${pagination}`
     }
   </div>
@@ -117,9 +285,10 @@ function renderRow(row: BidRow): string {
   <td class="title-cell">
     ${
       row.bid_ntce_url
-        ? `<a href="${escapeHtml(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
+        ? `<a href="${safeUrl(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
         : escapeHtml(row.bid_ntce_nm ?? "-")
     }
+    ${renderStatusBadge(row.bid_ntce_sttus_nm)}
     <div class="label">${escapeHtml(row.bidprc_psbl_indstryty_nm ?? "")}</div>
   </td>
   <td>${escapeHtml(row.dmnd_instt_nm ?? "-")}</td>
