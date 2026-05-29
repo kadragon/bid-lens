@@ -116,6 +116,19 @@ describe("searchBids LIKE 와일드카드 이스케이프", () => {
 
     expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["u"]);
   });
+
+  // 백슬래시(ESCAPE 문자 자체) 분기 고정. 미이스케이프 시 `\B` → 이스케이프된 리터럴 B 로 읽혀
+  // 패턴이 깨지고 0건 반환 → 이 케이스가 escapeLike 의 백슬래시 분기를 pin.
+  it("q 의 백슬래시는 리터럴로 매칭 (ESCAPE 문자 자체 오염 방지)", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "bs", bidNtceNm: "A\\B 프로젝트" }),
+      bid({ bidNtceNo: "plain", bidNtceNm: "AXB 프로젝트" }),
+    ]);
+
+    const res = await searchBids(env.DB, { q: "A\\B" });
+
+    expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["bs"]);
+  });
 });
 
 // filter_rules 시드 무결성 → test/seed.test.ts (order-independent, 폴백 마스킹 차단).
