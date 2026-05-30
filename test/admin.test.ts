@@ -1,5 +1,5 @@
 import { applyD1Migrations, env } from "cloudflare:test";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFilterRules } from "../src/db/repo";
 import type { Env } from "../src/types";
 import { adminRouter } from "../src/web/admin";
@@ -32,7 +32,15 @@ beforeEach(async () => {
 });
 
 beforeEach(async () => {
+  await env.DB.prepare("DELETE FROM bids").run();
+});
+
+beforeEach(async () => {
   await env.DB.prepare("DELETE FROM login_attempts").run();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("admin auth", () => {
@@ -52,6 +60,7 @@ describe("admin auth", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("수집 필터 규칙");
+    expect(html).toContain('action="/admin/collect-day"');
   });
 
   it("returns 401 for POST /rules with invalid creds", async () => {
@@ -73,6 +82,75 @@ describe("admin auth", () => {
   it("returns 503 when ADMIN_PASSWORD is unset", async () => {
     const res = await adminRouter.request("/", {}, { ...testEnv, ADMIN_PASSWORD: "" });
     expect(res.status).toBe(503);
+  });
+});
+
+describe("admin daily collection", () => {
+  it("POST /collect-day fetches one day and stores filtered bids", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: { items: [], numOfRows: 1, pageNo: 1, totalCount: 1 },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: {
+                items: [
+                  {
+                    bidNtceNo: "manual-1",
+                    bidNtceOrd: "00",
+                    bidNtceNm: "대학 소프트웨어 구축",
+                    bidNtceSttusNm: "마감",
+                    bidNtceDate: "2026-05-01",
+                    bsnsDivNm: "용역",
+                    ntceInsttNm: "발주기관",
+                    dmndInsttNm: "테스트대학교",
+                    cntrctCnclsMthdNm: "일반경쟁",
+                    bidClseDate: "2026-05-02",
+                    bidClseTm: "0900",
+                    opengDate: "202605031000",
+                    opengTm: "1000",
+                    asignBdgtAmt: "100000000",
+                    presmptPrce: "90000000",
+                    bidprcPsblIndstrytyNm: "소프트웨어",
+                    bidNtceUrl: "https://example.com/manual-1",
+                  },
+                ],
+                numOfRows: 500,
+                pageNo: 1,
+                totalCount: 1,
+              },
+            },
+          }),
+        ),
+    );
+
+    const res = await adminRouter.request("/collect-day", form({ date: "2026-05-01" }), testEnv);
+
+    expect(res.status).toBe(302);
+    expect(res.headers.get("Location")).toBe(
+      "/admin?collectDate=2026-05-01&fetched=1&filtered=1&upserted=1",
+    );
+
+    const row = await env.DB.prepare("SELECT bid_ntce_nm FROM bids WHERE bid_ntce_no = ?")
+      .bind("manual-1")
+      .first<{ bid_ntce_nm: string }>();
+    expect(row?.bid_ntce_nm).toBe("대학 소프트웨어 구축");
+  });
+
+  it("POST /collect-day rejects invalid dates", async () => {
+    const res = await adminRouter.request("/collect-day", form({ date: "2026-5-1" }), testEnv);
+
+    expect(res.status).toBe(400);
   });
 });
 

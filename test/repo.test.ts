@@ -12,8 +12,6 @@ import {
   upsertBids,
 } from "../src/db/repo";
 
-const TODAY = "2026-05-29";
-
 function bid(over: Partial<BidItem> & Pick<BidItem, "bidNtceNo">): BidItem {
   return {
     bidNtceOrd: "00",
@@ -44,52 +42,33 @@ beforeEach(async () => {
   await env.DB.prepare("DELETE FROM bids").run();
 });
 
-describe("searchBids close-date filter", () => {
-  it("excludes closed bids by default", async () => {
-    await upsertBids(env.DB, [
-      bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" }), // 어제 마감 → 제외
-      bid({ bidNtceNo: "today", bidClseDate: "2026-05-29" }), // 당일 마감 → 포함
-      bid({ bidNtceNo: "future", bidClseDate: "2026-06-01" }), // 미래 → 포함
-      bid({ bidNtceNo: "empty", bidClseDate: "" }), // 빈값 → 포함 (정보 없음, 숨기지 않음)
-    ]);
-
-    const res = await searchBids(env.DB, { today: TODAY });
-    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
-
-    expect(nos).toEqual(["empty", "future", "today"]);
-    expect(res.total).toBe(3);
-  });
-
-  it("includes closed bids when requested", async () => {
+describe("searchBids close-date handling", () => {
+  it("keeps closed bids in default results", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" }),
+      bid({ bidNtceNo: "today", bidClseDate: "2026-05-29" }),
       bid({ bidNtceNo: "future", bidClseDate: "2026-06-01" }),
+      bid({ bidNtceNo: "empty", bidClseDate: "" }),
     ]);
 
-    const res = await searchBids(env.DB, { today: TODAY, includeClosed: true });
-
-    expect(res.total).toBe(2);
-  });
-
-  it("skips close-date filter without today", async () => {
-    await upsertBids(env.DB, [bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" })]);
-
     const res = await searchBids(env.DB, {});
+    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
 
-    expect(res.total).toBe(1);
+    expect(nos).toEqual(["empty", "future", "past", "today"]);
+    expect(res.total).toBe(4);
   });
 
-  it("combines close-date filter with q", async () => {
+  it("combines q with closed bids still visible", async () => {
     await upsertBids(env.DB, [
-      bid({ bidNtceNo: "a", bidNtceNm: "AI 플랫폼 구축", bidClseDate: "2026-05-28" }), // 마감 → 제외
-      bid({ bidNtceNo: "b", bidNtceNm: "AI 플랫폼 운영", bidClseDate: "2026-06-01" }), // 미래 → 포함
+      bid({ bidNtceNo: "a", bidNtceNm: "AI 플랫폼 구축", bidClseDate: "2026-05-28" }),
+      bid({ bidNtceNo: "b", bidNtceNm: "AI 플랫폼 운영", bidClseDate: "2026-06-01" }),
       bid({ bidNtceNo: "c", bidNtceNm: "포털 구축", bidClseDate: "2026-06-01" }), // q 불일치
     ]);
 
-    const res = await searchBids(env.DB, { today: TODAY, q: "플랫폼" });
-    const nos = res.rows.map((r) => r.bid_ntce_no);
+    const res = await searchBids(env.DB, { q: "플랫폼" });
+    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
 
-    expect(nos).toEqual(["b"]);
+    expect(nos).toEqual(["a", "b"]);
   });
 });
 
