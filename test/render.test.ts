@@ -26,6 +26,8 @@ function row(over: Partial<BidRow> & Pick<BidRow, "bid_ntce_no">): BidRow {
     presmpt_prce: 90000000,
     bidprc_psbl_indstryty_nm: "소프트웨어",
     bid_ntce_url: "https://example.com/1",
+    proposal_request_file_nm: null,
+    proposal_request_url: null,
     collected_at: "2026-05-29T00:00:00Z",
     ...over,
   };
@@ -165,5 +167,26 @@ describe("renderPage search form", () => {
     const html = renderPage(result, baseQuery);
 
     expect(html).not.toContain("includeClosed=1");
+  });
+
+  it("renders proposal request link column", () => {
+    const result: SearchResult = {
+      rows: [
+        row({
+          bid_ntce_no: "rfp",
+          proposal_request_file_nm: "기술제안서.hwp",
+          proposal_request_url: "https://example.com/rfp",
+        }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    };
+    const html = renderPage(result, baseQuery);
+
+    expect(html).toContain("<th>제안</th>");
+    expect(html).toContain(
+      '<a class="proposal-link" href="https://example.com/rfp" target="_blank" rel="noopener noreferrer" title="기술제안서.hwp">보기</a>',
+    );
   });
 });

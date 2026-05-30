@@ -110,6 +110,41 @@ describe("searchBids LIKE escaping", () => {
   });
 });
 
+describe("upsertBids proposal request attachment", () => {
+  it("stores proposal request link fields", async () => {
+    await upsertBids(env.DB, [
+      bid({
+        bidNtceNo: "rfp",
+        proposalRequestFileNm: "기술제안서.hwp",
+        proposalRequestUrl: "https://example.com/rfp",
+      }),
+    ]);
+
+    const res = await searchBids(env.DB, { q: "테스트" });
+
+    expect(res.rows[0]?.proposal_request_file_nm).toBe("기술제안서.hwp");
+    expect(res.rows[0]?.proposal_request_url).toBe("https://example.com/rfp");
+  });
+
+  it("keeps existing proposal link when new collection has no attachment data", async () => {
+    await upsertBids(env.DB, [
+      bid({
+        bidNtceNo: "rfp",
+        bidNtceNm: "old title",
+        proposalRequestFileNm: "기술제안서.hwp",
+        proposalRequestUrl: "https://example.com/rfp",
+      }),
+    ]);
+
+    await upsertBids(env.DB, [bid({ bidNtceNo: "rfp", bidNtceNm: "new title" })]);
+
+    const res = await searchBids(env.DB, { q: "new title" });
+
+    expect(res.rows[0]?.proposal_request_file_nm).toBe("기술제안서.hwp");
+    expect(res.rows[0]?.proposal_request_url).toBe("https://example.com/rfp");
+  });
+});
+
 // filter_rules 시드 무결성 → test/seed.test.ts (order-independent, 폴백 마스킹 차단).
 
 describe("filter_rules CRUD", () => {

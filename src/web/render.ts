@@ -245,6 +245,13 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
     .label { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
     .amount { white-space: nowrap; }
     .ntce-date { white-space: nowrap; }
+    .proposal-link {
+      color: var(--link);
+      text-decoration: none;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .proposal-link:active { color: var(--link-active); }
     .method {
       display: inline-block;
       font-size: 12px;
@@ -339,6 +346,7 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
           <tr>
             <th>공고구분</th>
             <th>공고명</th>
+            <th>제안</th>
             <th>수요기관</th>
             <th>계약방법</th>
             <th>배정예산</th>
@@ -405,11 +413,18 @@ function renderRow(row: BidRow, opts?: RenderOpts): string {
     }
     ${renderIndustryTags(row.bidprc_psbl_indstryty_nm, opts)}
   </td>
+  <td>${renderProposalLink(row)}</td>
   <td>${escapeHtml(row.dmnd_instt_nm ?? "-")}</td>
   <td><span class="method ${contractMethodClass(row.cntrct_cncls_mthd_nm)}">${escapeHtml(row.cntrct_cncls_mthd_nm ?? "-")}</span></td>
   <td class="amount">${formatAmount(row.asign_bdgt_amt)}</td>
   <td class="ntce-date">${formatDate(row.bid_ntce_date)}</td>
 </tr>`;
+}
+
+function renderProposalLink(row: BidRow): string {
+  if (!row.proposal_request_url) return "";
+  const title = row.proposal_request_file_nm ?? "제안 첨부파일";
+  return `<a class="proposal-link" href="${safeUrl(row.proposal_request_url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title)}">보기</a>`;
 }
 
 function renderPagination(

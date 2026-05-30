@@ -16,6 +16,19 @@ export interface BidItem {
   presmptPrce: string;
   bidprcPsblIndstrytyNm: string;
   bidNtceUrl: string;
+  proposalRequestFileNm?: string;
+  proposalRequestUrl?: string;
+}
+
+export interface ProposalRequestAttachment {
+  fileName: string;
+  url: string;
+}
+
+export interface BidAttachmentItem {
+  bidNtceNo: string;
+  bidNtceOrd: string;
+  [key: string]: string | undefined;
 }
 
 export interface BidApiResponseHeader {
@@ -23,16 +36,16 @@ export interface BidApiResponseHeader {
   resultMsg: string;
 }
 
-export interface BidApiResponseBody {
-  items: BidItem[] | string | null;
+export interface BidApiResponseBody<TItem = BidItem> {
+  items: TItem[] | string | null;
   numOfRows: number;
   pageNo: number;
   totalCount: number;
 }
 
-export interface BidApiResponse {
+export interface BidApiResponse<TItem = BidItem> {
   response: {
     header: BidApiResponseHeader;
-    body: BidApiResponseBody;
+    body: BidApiResponseBody<TItem>;
   };
 }
