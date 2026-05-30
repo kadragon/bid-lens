@@ -60,7 +60,10 @@ describe("admin auth", () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain("수집 필터 규칙");
-    expect(html).toContain('action="/admin/collect-day"');
+    expect(html).toContain('action="/admin/collect"');
+    expect(html).toContain('name="startDate"');
+    expect(html).toContain('name="endDate"');
+    expect(html).toContain('id="collect-progress"');
   });
 
   it("returns 401 for POST /rules with invalid creds", async () => {
@@ -131,6 +134,14 @@ describe("admin daily collection", () => {
               },
             },
           }),
+        )
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: { items: [], numOfRows: 1, pageNo: 1, totalCount: 0 },
+            },
+          }),
         ),
     );
 
@@ -151,6 +162,145 @@ describe("admin daily collection", () => {
     const res = await adminRouter.request("/collect-day", form({ date: "2026-5-1" }), testEnv);
 
     expect(res.status).toBe(400);
+  });
+
+  it("POST /collect streams progress for an inclusive date range", async () => {
+    await env.DB.prepare(
+      "INSERT INTO bids (bid_ntce_no, bid_ntce_ord, bid_ntce_nm, bid_ntce_date, collected_at) VALUES (?, ?, ?, ?, ?)",
+    )
+      .bind("manual-1", "00", "old title", "2026-05-01", "2026-05-01T00:00:00.000Z")
+      .run();
+
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: { items: [], numOfRows: 1, pageNo: 1, totalCount: 1 },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: {
+                items: [
+                  {
+                    bidNtceNo: "manual-1",
+                    bidNtceOrd: "00",
+                    bidNtceNm: "new title",
+                    bidNtceSttusNm: "공고중",
+                    bidNtceDate: "2026-05-01",
+                    bsnsDivNm: "용역",
+                    ntceInsttNm: "발주기관",
+                    dmndInsttNm: "테스트대학교",
+                    cntrctCnclsMthdNm: "일반경쟁",
+                    bidClseDate: "2026-05-02",
+                    bidClseTm: "0900",
+                    opengDate: "202605031000",
+                    opengTm: "1000",
+                    asignBdgtAmt: "100000000",
+                    presmptPrce: "90000000",
+                    bidprcPsblIndstrytyNm: "소프트웨어",
+                    bidNtceUrl: "https://example.com/manual-1",
+                  },
+                ],
+                numOfRows: 500,
+                pageNo: 1,
+                totalCount: 1,
+              },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: { items: [], numOfRows: 1, pageNo: 1, totalCount: 0 },
+            },
+          }),
+        )
+        .mockResolvedValueOnce(
+          Response.json({
+            response: {
+              header: { resultCode: "00", resultMsg: "OK" },
+              body: { items: [], numOfRows: 1, pageNo: 1, totalCount: 0 },
+            },
+          }),
+        ),
+    );
+
+    const res = await adminRouter.request(
+      "/collect",
+      form({ startDate: "2026-05-01", endDate: "2026-05-02" }),
+      testEnv,
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("application/x-ndjson");
+    const body = new TextDecoder().decode(await res.arrayBuffer());
+    const events = body
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { type: string; date?: string; upserted?: number });
+
+    expect(events).toContainEqual({ type: "start", totalDays: 2 });
+    expect(events).toContainEqual({ type: "day-start", date: "20260501", dayIndex: 1 });
+    expect(events).toContainEqual({
+      type: "day-complete",
+      date: "20260501",
+      fetched: 1,
+      filtered: 1,
+      upserted: 1,
+    });
+    expect(events).toContainEqual({ type: "day-start", date: "20260502", dayIndex: 2 });
+    expect(events).toContainEqual({
+      type: "day-complete",
+      date: "20260502",
+      fetched: 0,
+      filtered: 0,
+      upserted: 0,
+    });
+    expect(events.at(-1)).toEqual({
+      type: "complete",
+      fetched: 1,
+      filtered: 1,
+      upserted: 1,
+      errors: 0,
+    });
+
+    const row = await env.DB.prepare("SELECT bid_ntce_nm FROM bids WHERE bid_ntce_no = ?")
+      .bind("manual-1")
+      .first<{ bid_ntce_nm: string }>();
+    expect(row?.bid_ntce_nm).toBe("new title");
+  });
+
+  it("POST /collect rejects reversed ranges", async () => {
+    const res = await adminRouter.request(
+      "/collect",
+      form({ startDate: "2026-05-02", endDate: "2026-05-01" }),
+      testEnv,
+    );
+
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /collect rejects ranges over seven days", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await adminRouter.request(
+      "/collect",
+      form({ startDate: "2026-05-01", endDate: "2026-05-08" }),
+      testEnv,
+    );
+
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

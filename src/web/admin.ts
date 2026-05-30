@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-import { collectBidDates, normalizeCollectDate } from "../collector/collect";
+import { collectBidDates, collectDateRange, normalizeCollectDate } from "../collector/collect";
 import {
   addFilterRule,
   clearLoginFailures,
@@ -180,6 +180,51 @@ function parseCollectSummary(query: Record<string, string>): AdminCollectSummary
   return { date, fetched, filtered, upserted };
 }
 
+function streamCollectEvents(env: Env, dates: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const write = (event: object) => {
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      };
+
+      write({ type: "start", totalDays: dates.length });
+      try {
+        const results = await collectBidDates(
+          env.DB,
+          { proxyUrl: env.OPEN_DATA_API_PROXY_URL, apiKey: env.OPEN_DATA_X_API_KEY },
+          dates,
+          "[admin]",
+          write,
+        );
+        const totals = results.reduce(
+          (acc, result) => ({
+            fetched: acc.fetched + result.fetched,
+            filtered: acc.filtered + result.filtered,
+            upserted: acc.upserted + result.upserted,
+            errors: acc.errors + (result.error ? 1 : 0),
+          }),
+          { fetched: 0, filtered: 0, upserted: 0, errors: 0 },
+        );
+        write({ type: "complete", ...totals });
+      } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
+        write({ type: "fatal", error });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    },
+  });
+}
+
 adminRouter.post("/rules", async (c) => {
   const body = await c.req.parseBody();
   const ruleType = typeof body.rule_type === "string" ? body.rule_type : "";
@@ -244,4 +289,14 @@ adminRouter.post("/collect-day", async (c) => {
     upserted: String(result.upserted),
   });
   return c.redirect(`/admin?${params.toString()}`);
+});
+
+adminRouter.post("/collect", async (c) => {
+  const body = await c.req.parseBody();
+  const startDate = typeof body.startDate === "string" ? body.startDate : "";
+  const endDate = typeof body.endDate === "string" ? body.endDate : startDate;
+  const dates = collectDateRange(startDate, endDate);
+  if (dates === null) return c.text("invalid date range", 400);
+
+  return streamCollectEvents(c.env, dates);
 });

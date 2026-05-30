@@ -19,6 +19,8 @@ export interface BidRow {
   presmpt_prce: number | null;
   bidprc_psbl_indstryty_nm: string | null;
   bid_ntce_url: string | null;
+  proposal_request_file_nm: string | null;
+  proposal_request_url: string | null;
   collected_at: string;
 }
 
@@ -57,8 +59,9 @@ export async function upsertBids(db: D1Database, items: BidItem[]): Promise<numb
       bid_ntce_date, bsns_div_nm, ntce_instt_nm, dmnd_instt_nm,
       cntrct_cncls_mthd_nm, bid_clse_date, bid_clse_tm,
       openg_date, openg_tm, asign_bdgt_amt, presmpt_prce,
-      bidprc_psbl_indstryty_nm, bid_ntce_url, collected_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      bidprc_psbl_indstryty_nm, bid_ntce_url, proposal_request_file_nm,
+      proposal_request_url, collected_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(bid_ntce_no, bid_ntce_ord) DO UPDATE SET
       bid_ntce_nm = excluded.bid_ntce_nm,
       bid_ntce_sttus_nm = excluded.bid_ntce_sttus_nm,
@@ -75,6 +78,8 @@ export async function upsertBids(db: D1Database, items: BidItem[]): Promise<numb
       presmpt_prce = excluded.presmpt_prce,
       bidprc_psbl_indstryty_nm = excluded.bidprc_psbl_indstryty_nm,
       bid_ntce_url = excluded.bid_ntce_url,
+      proposal_request_file_nm = COALESCE(excluded.proposal_request_file_nm, bids.proposal_request_file_nm),
+      proposal_request_url = COALESCE(excluded.proposal_request_url, bids.proposal_request_url),
       collected_at = excluded.collected_at
   `.trim();
 
@@ -100,6 +105,8 @@ export async function upsertBids(db: D1Database, items: BidItem[]): Promise<numb
         parseAmount(item.presmptPrce),
         item.bidprcPsblIndstrytyNm,
         item.bidNtceUrl,
+        item.proposalRequestFileNm ?? null,
+        item.proposalRequestUrl ?? null,
         now,
       ),
   );
