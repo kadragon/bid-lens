@@ -31,7 +31,7 @@ function row(over: Partial<BidRow> & Pick<BidRow, "bid_ntce_no">): BidRow {
   };
 }
 
-const baseQuery = { q: "", dmnd: "", from: "", to: "", page: 1, includeClosed: false };
+const baseQuery = { q: "", dmnd: "", from: "", to: "", page: 1 };
 
 describe("formatAmount", () => {
   it("formats null", () => {
@@ -139,7 +139,7 @@ describe("contractMethodClass", () => {
   });
 });
 
-describe("renderPage includeClosed", () => {
+describe("renderPage search form", () => {
   it("links SVG favicon", () => {
     const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
     const html = renderPage(result, baseQuery);
@@ -147,41 +147,22 @@ describe("renderPage includeClosed", () => {
     expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg" />');
   });
 
-  it("leaves checkbox unchecked", () => {
+  it("does not render closed filter controls", () => {
     const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
-    const html = renderPage(result, { ...baseQuery, includeClosed: false });
+    const html = renderPage(result, baseQuery);
 
-    expect(html).toContain('name="includeClosed"');
-    expect(html).not.toContain('value="1" checked');
+    expect(html).not.toContain("마감 포함");
+    expect(html).not.toContain('name="includeClosed"');
   });
 
-  it("checks checkbox", () => {
-    const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
-    const html = renderPage(result, { ...baseQuery, includeClosed: true });
-
-    expect(html).toContain('value="1" checked');
-  });
-
-  it("preserves includeClosed in pagination", () => {
+  it("does not preserve closed filter in pagination", () => {
     const result: SearchResult = {
       rows: [row({ bid_ntce_no: "a" })],
       total: 50,
       page: 1,
       pageSize: 20,
     };
-    const html = renderPage(result, { ...baseQuery, includeClosed: true });
-
-    expect(html).toContain("includeClosed=1");
-  });
-
-  it("omits includeClosed in pagination", () => {
-    const result: SearchResult = {
-      rows: [row({ bid_ntce_no: "a" })],
-      total: 50,
-      page: 1,
-      pageSize: 20,
-    };
-    const html = renderPage(result, { ...baseQuery, includeClosed: false });
+    const html = renderPage(result, baseQuery);
 
     expect(html).not.toContain("includeClosed=1");
   });

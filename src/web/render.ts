@@ -55,7 +55,6 @@ interface SearchQuery {
   from: string;
   to: string;
   page: number;
-  includeClosed: boolean;
 }
 
 interface RenderOpts {
@@ -279,12 +278,19 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
       padding: 0 4px; border-radius: 3px;
       background: #1b4fa0; color: #fff;
     }
-    .ind-x-btn {
+    .ind-x-form {
       display: inline-flex; align-items: center;
-      margin: 0; padding: 0; background: none; border: none;
-      cursor: pointer; color: var(--muted); font-size: 11px; line-height: 1;
+      margin: 0; padding: 0; border: 0; background: transparent;
+      flex: 0 0 auto; gap: 0;
     }
-    .ind-x-btn:hover { color: #b3261e; }
+    .ind-x-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 14px; height: 14px;
+      margin: 0 0 0 1px; padding: 0; background: transparent; border: none;
+      border-radius: 50%;
+      cursor: pointer; color: var(--muted); font-size: 10px; line-height: 1;
+    }
+    .ind-x-btn:hover { color: #b3261e; background: #f7e8e7; }
     .pagination {
       display: flex;
       gap: 4px;
@@ -320,10 +326,6 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
       <input name="from" type="date" value="${escapeHtml(query.from)}" title="공고일 시작" />
       <input name="to" type="date" value="${escapeHtml(query.to)}" title="공고일 종료" />
-      <label class="check-inline" title="마감일이 지난 공고도 표시">
-        <input type="checkbox" name="includeClosed" value="1"${query.includeClosed ? " checked" : ""} />
-        마감 포함
-      </label>
       <button type="submit" class="btn-primary">검색</button>
       <a href="/" class="btn-secondary">초기화</a>
     </form>
@@ -377,7 +379,7 @@ function renderIndustryTags(raw: string | null, opts: RenderOpts | undefined): s
       // X 버튼: admin 로그인 중이고 아직 excluded 아닌 세그먼트에만 표시
       let xBtn = "";
       if (opts?.isAdmin && !info.excluded) {
-        xBtn = `<form method="POST" action="/admin/rules" style="display:inline">
+        xBtn = `<form method="POST" action="/admin/rules" class="ind-x-form">
           <input type="hidden" name="rule_type" value="industry_exclude" />
           <input type="hidden" name="pattern" value="${escapeHtml(info.segment)}" />
           <button type="submit" class="ind-x-btn" title="업종 제외 규칙 추가 (다음 수집부터 적용)">✕</button>
@@ -424,7 +426,6 @@ function renderPagination(
     if (query.dmnd) params.set("dmnd", query.dmnd);
     if (query.from) params.set("from", query.from);
     if (query.to) params.set("to", query.to);
-    if (query.includeClosed) params.set("includeClosed", "1");
     params.set("page", String(p));
     return `/?${params.toString()}`;
   };

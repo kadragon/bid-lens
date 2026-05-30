@@ -49,6 +49,18 @@ function renderRule(rule: FilterRuleRow): string {
 </li>`;
 }
 
+export interface AdminCollectSummary {
+  date: string;
+  fetched: number;
+  filtered: number;
+  upserted: number;
+}
+
+function renderCollectSummary(summary: AdminCollectSummary | undefined): string {
+  if (!summary) return "";
+  return `<p class="collect-result">수집 완료: ${escapeHtml(summary.date)} · 전체 ${summary.fetched.toLocaleString("ko-KR")}건 · 필터 후 ${summary.filtered.toLocaleString("ko-KR")}건 · 저장 ${summary.upserted.toLocaleString("ko-KR")}건</p>`;
+}
+
 function renderGroup(group: RuleGroup, rules: FilterRuleRow[]): string {
   const items =
     rules.length > 0
@@ -67,7 +79,10 @@ function renderGroup(group: RuleGroup, rules: FilterRuleRow[]): string {
 </section>`;
 }
 
-export function renderAdminPage(rules: FilterRuleRow[]): string {
+export function renderAdminPage(
+  rules: FilterRuleRow[],
+  collectSummary?: AdminCollectSummary,
+): string {
   const sections = RULE_GROUPS.map((g) =>
     renderGroup(
       g,
@@ -102,6 +117,19 @@ export function renderAdminPage(rules: FilterRuleRow[]): string {
       border: 1px solid var(--hairline); border-radius: var(--r-lg);
       padding: 20px 24px; margin-bottom: 20px; background: var(--canvas);
     }
+    .collect {
+      border: 1px solid var(--hairline); border-radius: var(--r-lg);
+      padding: 20px 24px; margin-bottom: 20px; background: var(--surface-soft);
+    }
+    .collect h2 { font-size: 16px; font-weight: 500; color: var(--ink); margin: 0 0 4px; }
+    .collect-form { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+    .collect-form input {
+      border: 1px solid var(--hairline); border-radius: var(--r-sm);
+      padding: 0 12px; height: 38px; font-size: 14px; font-family: inherit; color: var(--ink);
+    }
+    .collect-result {
+      margin: 12px 0 0; color: #14532d; font-size: 13px; font-weight: 500;
+    }
     .group h2 { font-size: 16px; font-weight: 500; color: var(--ink); margin: 0 0 4px; }
     .group h2 code { font-size: 12px; color: var(--muted); font-weight: 400; }
     .hint { font-size: 12px; color: var(--muted); margin: 0 0 16px; }
@@ -134,13 +162,26 @@ export function renderAdminPage(rules: FilterRuleRow[]): string {
     }
     .btn-ghost:hover { background: var(--surface-soft); }
     .btn-danger { color: var(--danger); border-color: #e7b8b5; }
-    @media (max-width: 600px) { .container { padding: 24px 16px 48px; } }
+    @media (max-width: 600px) {
+      .container { padding: 24px 16px 48px; }
+      .collect-form, .add { flex-direction: column; align-items: stretch; }
+      .collect-form input, .collect-form button { width: 100%; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>수집 필터 규칙</h1>
     <p class="lead">규칙 편집은 <strong>다음 수집(cron)부터</strong> 반영됩니다. 저장된 공고는 재필터링되지 않습니다. 활성 규칙을 모두 비우면 <strong>기본 규칙</strong>으로 되돌아갑니다(전체 수집 방지). · <a href="/">공고 목록</a></p>
+    <section class="collect">
+      <h2>날짜별 수동 수집</h2>
+      <p class="hint">선택한 하루의 공고를 가져와 현재 필터 규칙으로 저장합니다.</p>
+      <form method="POST" action="/admin/collect-day" class="collect-form">
+        <input name="date" type="date" required />
+        <button type="submit" class="btn-primary">수집</button>
+      </form>
+      ${renderCollectSummary(collectSummary)}
+    </section>
     ${sections}
   </div>
 </body>

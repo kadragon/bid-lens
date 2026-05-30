@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
+import { collectBidDates, normalizeCollectDate } from "../collector/collect";
 import {
   addFilterRule,
   clearLoginFailures,
@@ -11,7 +12,7 @@ import {
   setFilterRuleEnabled,
 } from "../db/repo";
 import type { Env } from "../types";
-import { renderAdminPage } from "./render-admin";
+import { type AdminCollectSummary, renderAdminPage } from "./render-admin";
 
 export const adminRouter = new Hono<{ Bindings: Env }>();
 
@@ -160,8 +161,24 @@ adminRouter.use("*", async (c, next) => {
 
 adminRouter.get("/", async (c) => {
   const rules = await listFilterRules(c.env.DB);
-  return c.html(renderAdminPage(rules));
+  const collectSummary = parseCollectSummary(c.req.query());
+  return c.html(renderAdminPage(rules, collectSummary));
 });
+
+function parsePositiveInt(input: string | undefined): number | null {
+  if (input === undefined || !/^\d+$/.test(input)) return null;
+  return Number(input);
+}
+
+function parseCollectSummary(query: Record<string, string>): AdminCollectSummary | undefined {
+  const date = query.collectDate;
+  if (!date) return undefined;
+  const fetched = parsePositiveInt(query.fetched);
+  const filtered = parsePositiveInt(query.filtered);
+  const upserted = parsePositiveInt(query.upserted);
+  if (fetched === null || filtered === null || upserted === null) return undefined;
+  return { date, fetched, filtered, upserted };
+}
 
 adminRouter.post("/rules", async (c) => {
   const body = await c.req.parseBody();
@@ -203,4 +220,28 @@ adminRouter.post("/rules/:id/toggle", async (c) => {
   const enabled = body.enabled === "1";
   await setFilterRuleEnabled(c.env.DB, id, enabled);
   return c.redirect("/admin");
+});
+
+adminRouter.post("/collect-day", async (c) => {
+  const body = await c.req.parseBody();
+  const rawDate = typeof body.date === "string" ? body.date : "";
+  const date = normalizeCollectDate(rawDate);
+  if (date === null) return c.text("invalid date", 400);
+
+  const [result] = await collectBidDates(
+    c.env.DB,
+    { proxyUrl: c.env.OPEN_DATA_API_PROXY_URL, apiKey: c.env.OPEN_DATA_X_API_KEY },
+    [date],
+    "[admin]",
+  );
+  if (!result) return c.text("collection failed", 500);
+  if (result.error) return c.text(result.error, 502);
+
+  const params = new URLSearchParams({
+    collectDate: rawDate,
+    fetched: String(result.fetched),
+    filtered: String(result.filtered),
+    upserted: String(result.upserted),
+  });
+  return c.redirect(`/admin?${params.toString()}`);
 });

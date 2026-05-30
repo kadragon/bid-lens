@@ -5,7 +5,6 @@ dist/
 .dev.vars.*
 !.dev.vars.example
 .env
-pnpm-workspace.yaml
 *.local
 .antigravitycli/
 .playwright-mcp/
