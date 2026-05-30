@@ -265,7 +265,18 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
     .method-limited { background: #fff4e5; color: #9a5b00; border-color: #ffd9a0; }
     .method-default { background: var(--surface-soft); color: var(--body); }
     /* 업종 태그 */
-    .industry-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+    .industry-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; align-items: center; }
+    .ind-details { display: contents; }
+    .ind-summary {
+      display: inline-flex; align-items: center;
+      font-size: 11px; padding: 1px 7px;
+      border-radius: var(--r-sm); border: 1px solid var(--hairline);
+      background: var(--surface-soft); color: var(--muted);
+      cursor: pointer; list-style: none; white-space: nowrap;
+    }
+    .ind-summary::-webkit-details-marker { display: none; }
+    .ind-details[open] .ind-summary { color: var(--body); }
+    .ind-details-body { display: contents; }
     .ind-chip {
       display: inline-flex; align-items: center; gap: 3px;
       font-size: 11px; padding: 1px 7px;
@@ -369,37 +380,52 @@ function renderIndustryTags(raw: string | null, opts: RenderOpts | undefined): s
   if (!rules) return `<div class="label">${escapeHtml(raw)}</div>`;
 
   const segments = classifySegments(raw, rules);
-  const chips = segments
-    .map((info) => {
-      const segHtml = escapeHtml(info.segment);
-      if (!segHtml) return "";
 
-      let cls = "ind-chip";
-      let inner = segHtml;
+  const buildChip = (info: (typeof segments)[number]): string => {
+    const segHtml = escapeHtml(info.segment);
+    if (!segHtml) return "";
 
-      if (info.excluded) {
-        cls += " ind-chip-excl";
-      } else if (info.matchedBy !== null) {
-        cls += " ind-chip-match";
-        inner += ` <span class="ind-match-badge">${escapeHtml(info.matchedBy)}</span>`;
-      }
+    let cls = "ind-chip";
+    let inner = segHtml;
 
-      // X 버튼: admin 로그인 중이고 아직 excluded 아닌 세그먼트에만 표시
-      let xBtn = "";
-      if (opts?.isAdmin && !info.excluded) {
-        xBtn = `<form method="POST" action="/admin/rules" class="ind-x-form">
+    if (info.excluded) {
+      cls += " ind-chip-excl";
+    } else if (info.matchedBy !== null) {
+      cls += " ind-chip-match";
+      inner += ` <span class="ind-match-badge">${escapeHtml(info.matchedBy)}</span>`;
+    }
+
+    let xBtn = "";
+    if (opts?.isAdmin && !info.excluded) {
+      xBtn = `<form method="POST" action="/admin/rules" class="ind-x-form">
           <input type="hidden" name="rule_type" value="industry_exclude" />
           <input type="hidden" name="pattern" value="${escapeHtml(info.segment)}" />
           <button type="submit" class="ind-x-btn" title="업종 제외 규칙 추가 (다음 수집부터 적용)">✕</button>
         </form>`;
-      }
+    }
 
-      return `<span class="${cls}">${inner}${xBtn}</span>`;
-    })
-    .filter(Boolean)
-    .join("");
+    return `<span class="${cls}">${inner}${xBtn}</span>`;
+  };
 
-  return chips ? `<div class="industry-tags">${chips}</div>` : "";
+  // 매칭/제외 칩은 항상 표시, 나머지(중립)는 접기
+  const visible = segments.filter((s) => s.matchedBy !== null || s.excluded);
+  const rest = segments.filter((s) => s.matchedBy === null && !s.excluded);
+
+  const visibleHtml = visible.map(buildChip).filter(Boolean).join("");
+  const restHtml = rest.map(buildChip).filter(Boolean).join("");
+
+  if (!visibleHtml && !restHtml) return "";
+
+  const restCount = rest.filter((s) => s.segment).length;
+  const detailsPart =
+    restHtml && restCount > 0
+      ? `<details class="ind-details">
+          <summary class="ind-summary">+${restCount}개</summary>
+          <div class="ind-details-body">${restHtml}</div>
+        </details>`
+      : "";
+
+  return `<div class="industry-tags">${visibleHtml}${detailsPart}</div>`;
 }
 
 function renderRow(row: BidRow, opts?: RenderOpts): string {
