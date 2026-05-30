@@ -266,7 +266,7 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
     .method-default { background: var(--surface-soft); color: var(--body); }
     /* 업종 태그 */
     .industry-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; align-items: center; }
-    .ind-details { display: contents; }
+    .ind-details { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     .ind-summary {
       display: inline-flex; align-items: center;
       font-size: 11px; padding: 1px 7px;
@@ -276,7 +276,7 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
     }
     .ind-summary::-webkit-details-marker { display: none; }
     .ind-details[open] .ind-summary { color: var(--body); }
-    .ind-details-body { display: contents; }
+    .ind-details-body { display: inline-flex; flex-wrap: wrap; gap: 4px; }
     .ind-chip {
       display: inline-flex; align-items: center; gap: 3px;
       font-size: 11px; padding: 1px 7px;
@@ -379,11 +379,10 @@ function renderIndustryTags(raw: string | null, opts: RenderOpts | undefined): s
   const rules = opts?.filterRules;
   if (!rules) return `<div class="label">${escapeHtml(raw)}</div>`;
 
-  const segments = classifySegments(raw, rules);
+  const segments = classifySegments(raw, rules).filter((s) => s.segment);
 
   const buildChip = (info: (typeof segments)[number]): string => {
     const segHtml = escapeHtml(info.segment);
-    if (!segHtml) return "";
 
     let cls = "ind-chip";
     let inner = segHtml;
@@ -411,12 +410,12 @@ function renderIndustryTags(raw: string | null, opts: RenderOpts | undefined): s
   const visible = segments.filter((s) => s.matchedBy !== null || s.excluded);
   const rest = segments.filter((s) => s.matchedBy === null && !s.excluded);
 
-  const visibleHtml = visible.map(buildChip).filter(Boolean).join("");
-  const restHtml = rest.map(buildChip).filter(Boolean).join("");
+  const visibleHtml = visible.map(buildChip).join("");
+  const restHtml = rest.map(buildChip).join("");
 
   if (!visibleHtml && !restHtml) return "";
 
-  const restCount = rest.filter((s) => s.segment).length;
+  const restCount = rest.length;
   const detailsPart =
     restHtml && restCount > 0
       ? `<details class="ind-details">
