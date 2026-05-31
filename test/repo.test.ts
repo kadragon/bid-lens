@@ -72,7 +72,20 @@ describe("searchBids close-date handling", () => {
   });
 });
 
-describe("searchBids LIKE escaping", () => {
+describe("searchBids FTS5 searching and escaping", () => {
+  it("matches multiple words split by space (AND matching)", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "a", bidNtceNm: "AI 플랫폼 구축 사업" }),
+      bid({ bidNtceNo: "b", bidNtceNm: "AI 시스템 구축" }),
+      bid({ bidNtceNo: "c", bidNtceNm: "플랫폼 운영 사업" }),
+    ]);
+
+    const res = await searchBids(env.DB, { q: "AI 플랫폼" });
+    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
+
+    expect(nos).toEqual(["a"]);
+  });
+
   it("matches q percent literally", async () => {
     await upsertBids(env.DB, [
       bid({ bidNtceNo: "lit", bidNtceNm: "할인 50% 행사" }),
@@ -96,17 +109,15 @@ describe("searchBids LIKE escaping", () => {
     expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["u"]);
   });
 
-  // 백슬래시(ESCAPE 문자 자체) 분기 고정. 미이스케이프 시 `\B` → 이스케이프된 리터럴 B 로 읽혀
-  // 패턴이 깨지고 0건 반환 → 이 케이스가 escapeLike 의 백슬래시 분기를 pin.
-  it("matches q backslash literally", async () => {
+  it("handles double quotes safely", async () => {
     await upsertBids(env.DB, [
-      bid({ bidNtceNo: "bs", bidNtceNm: "A\\B 프로젝트" }),
-      bid({ bidNtceNo: "plain", bidNtceNm: "AXB 프로젝트" }),
+      bid({ bidNtceNo: "quote", bidNtceNm: '스마트 "캠퍼스" 구축' }),
+      bid({ bidNtceNo: "plain", bidNtceNm: "스마트 캠퍼스 구축" }),
     ]);
 
-    const res = await searchBids(env.DB, { q: "A\\B" });
-
-    expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["bs"]);
+    const res = await searchBids(env.DB, { q: '"캠퍼스"' });
+    const nos = res.rows.map((r) => r.bid_ntce_no);
+    expect(nos).toEqual(["quote"]);
   });
 });
 
@@ -232,5 +243,37 @@ describe("filter_rules CRUD", () => {
 
     await addFilterRule(env.DB, "name_exclude", "유지보수");
     expect((await getFilterRules(env.DB)).nameExclude).toContain("유지보수");
+  });
+});
+
+describe("searchBids latest ord and history tracking", () => {
+  it("only returns the latest ord bid and compiles history_ords", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "123", bidNtceOrd: "00", bidNtceNm: "AI 플랫폼 v0" }),
+      bid({ bidNtceNo: "123", bidNtceOrd: "01", bidNtceNm: "AI 플랫폼 v1" }),
+      bid({ bidNtceNo: "123", bidNtceOrd: "02", bidNtceNm: "AI 플랫폼 v2" }),
+      bid({ bidNtceNo: "456", bidNtceOrd: "00", bidNtceNm: "포털 시스템 구축" }),
+    ]);
+
+    const res = await searchBids(env.DB, {});
+
+    // 두 개의 고유 공고번호만 반환되어야 함
+    expect(res.total).toBe(2);
+    expect(res.rows).toHaveLength(2);
+
+    const latest123 = res.rows.find((r) => r.bid_ntce_no === "123");
+    expect(latest123).toBeDefined();
+    if (latest123) {
+      expect(latest123.bid_ntce_ord).toBe("02");
+      expect(latest123.bid_ntce_nm).toBe("AI 플랫폼 v2");
+      expect(latest123.history_ords).toBe("00,01,02");
+    }
+
+    const single456 = res.rows.find((r) => r.bid_ntce_no === "456");
+    expect(single456).toBeDefined();
+    if (single456) {
+      expect(single456.bid_ntce_ord).toBe("00");
+      expect(single456.history_ords).toBe("00");
+    }
   });
 });

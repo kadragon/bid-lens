@@ -23,3 +23,16 @@
 - [x] [doc] 시드(`0002`) ↔ `DEFAULT_RULES` 동기 원칙을 AGENTS.md Golden Principles에 명문화 (현재 무결성 테스트로 기계 강제 중). **done (2026-05-29)**: Golden Principle #7 추가, `test/seed.test.ts` 강제 명시 (source: review) — `AGENTS.md`
 - [~] [decision] all-disabled → DEFAULT 폴백이 "전체 필터 해제" 의도를 막는다는 지적 — **유지 (2026-05-29)**: 5개 리뷰어 중 4(review-pr·security-review·codex·review)가 fail-safe 타당 판정, agy만 버그 주장. 전체 수집 폭주 방지가 우선 → 동작 유지, 어드민 UI에 폴백 안내 문구 추가로 갈음 (source: agy P1, review P2)
 - [~] [decision] CSRF Origin-missing 요청 차단(Origin 필수화) 제안 — **각하 (2026-05-29)**: security-review·review-pr 모두 현 Origin-host 검사가 브라우저 위협 모델에 충분하다 확인(브라우저는 교차출처 POST에 항상 Origin 첨부, 비브라우저 클라엔 ambient credential 없음). Origin 필수화는 정상 클라 차단 위험 (source: agy P2)
+
+### PR #12 — [FEAT] 검색 LIKE → FTS5 + LIKE 하이브리드 검색 전환 (2026-05-31)
+
+- [x] [constraint] D1 FTS5 가상테이블 및 3개 트리거(`bids_ai`, `bids_au`, `bids_ad`) 마이그레이션 적용 — `migrations/0005_bids_fts.sql`
+- [x] [debt] FTS5 섀도우 테이블에 의한 `changes()` count 왜곡 버그 해결 — `upsertBids`가 `items.length`를 반환하도록 수정 (source: test-failure) — `src/db/repo.ts`
+- [x] [FEAT] FTS5 MATCH 쿼리와 SQL LIKE를 결합한 하이브리드 검색 구현 — 인덱스 탐색 속도와 리터럴 및 특수문자 매칭 정확도를 동시 확보 — `src/db/repo.ts`
+- [x] [TEST] FTS5 다중 토큰 AND 검색, 특수문자(%, _, ") 매칭 테스트 케이스 추가 및 갱신 — `test/repo.test.ts`
+
+### PR #13 — [FEAT] 상태 배지 마감일 매칭 & 변경 이력(차수) 추적 최적화 (2026-05-31)
+
+- [x] [FEAT] [badge] 상태가 `"공고중"`이더라도 마감일(`bid_clse_date`)이 오늘 이전인 경우 `"마감"`(`badge-closed`) 배지로 렌더링되도록 수정 — `src/web/render.ts`
+- [x] [FEAT] [history] 동일 공고번호의 여러 차수 중 최신 차수만 목록에 단일 노출하고, 이전 차수 이력은 뱃지 링크(`00차`, `01차` 등)로 제목 옆에 렌더링 — `src/db/repo.ts` 및 `src/web/render.ts`
+- [x] [TEST] 이전 차수 뱃지 렌더링 검증, 과거 마감 공고의 마감 배지 전환 검증 및 최신 차수 필터링 통합 테스트 추가 — `test/render.test.ts` 및 `test/repo.test.ts`

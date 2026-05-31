@@ -41,11 +41,28 @@ function safeUrl(url: string): string {
   return /^https?:\/\//i.test(url) ? escapeHtml(url) : "#";
 }
 
-export function renderStatusBadge(status: string | null): string {
+export function renderStatusBadge(
+  status: string | null,
+  closeDate?: string | null,
+  today?: string,
+): string {
   if (!status) return "";
+  const refToday =
+    today ?? new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split("T")[0] ?? "";
   let cls = "badge-default";
-  if (/마감|취소|종료|개찰/.test(status)) cls = "badge-closed";
-  else if (/공고중(?!지)|진행/.test(status)) cls = "badge-open";
+
+  const isExpired = closeDate && closeDate !== "" && closeDate < refToday;
+  const isClosedStatus = /마감|취소|종료|개찰/.test(status);
+
+  if (isClosedStatus || isExpired) {
+    cls = "badge-closed";
+    const displayText = isExpired && status === "공고중" ? "마감" : status;
+    return `<span class="badge ${cls}">${escapeHtml(displayText)}</span>`;
+  }
+
+  if (/공고중(?!지)|진행/.test(status)) {
+    cls = "badge-open";
+  }
   return `<span class="badge ${cls}">${escapeHtml(status)}</span>`;
 }
 
@@ -55,6 +72,7 @@ interface SearchQuery {
   from: string;
   to: string;
   page: number;
+  today?: string;
 }
 
 interface RenderOpts {
@@ -64,7 +82,7 @@ interface RenderOpts {
 
 export function renderPage(result: SearchResult, query: SearchQuery, opts?: RenderOpts): string {
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
-  const rows = result.rows.map((row) => renderRow(row, opts)).join("\n");
+  const rows = result.rows.map((row) => renderRow(row, opts, query.today)).join("\n");
   const pagination = renderPagination(query, result.page, totalPages, result.total);
 
   return `<!DOCTYPE html>
@@ -427,15 +445,41 @@ function renderIndustryTags(raw: string | null, opts: RenderOpts | undefined): s
   return `<div class="industry-tags">${visibleHtml}${detailsPart}</div>`;
 }
 
-function renderRow(row: BidRow, opts?: RenderOpts): string {
+function getHistoryUrl(baseUrl: string | null, ord: string): string {
+  if (!baseUrl) return "#";
+  if (baseUrl.includes("bidNtceOrd=")) {
+    return baseUrl.replace(/bidNtceOrd=\d+/, `bidNtceOrd=${ord}`);
+  }
+  return baseUrl;
+}
+
+function renderHistoryBadges(row: BidRow): string {
+  if (!row.history_ords || !row.bid_ntce_ord) return "";
+  const ords = row.history_ords
+    .split(",")
+    .filter((o) => o !== row.bid_ntce_ord && o < row.bid_ntce_ord);
+  if (ords.length === 0) return "";
+
+  const chips = ords
+    .map((o) => {
+      const url = getHistoryUrl(row.bid_ntce_url, o);
+      return `<a href="${safeUrl(url)}" target="_blank" rel="noopener noreferrer" class="badge badge-default" style="margin-left:4px; font-size:10px; text-decoration:none; opacity:0.8;" title="이전 공고 ${o}차 보기">${escapeHtml(o)}차</a>`;
+    })
+    .join("");
+
+  return `<span style="margin-left: 6px; font-size: 11px; color: var(--muted); font-weight: normal;">이전: ${chips}</span>`;
+}
+
+function renderRow(row: BidRow, opts?: RenderOpts, today?: string): string {
   return `<tr>
-  <td>${renderStatusBadge(row.bid_ntce_sttus_nm)}</td>
+  <td>${renderStatusBadge(row.bid_ntce_sttus_nm, row.bid_clse_date, today)}</td>
   <td class="title-cell">
     ${
       row.bid_ntce_url
         ? `<a href="${safeUrl(row.bid_ntce_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.bid_ntce_nm ?? "-")}</a>`
         : escapeHtml(row.bid_ntce_nm ?? "-")
     }
+    ${renderHistoryBadges(row)}
     ${renderIndustryTags(row.bidprc_psbl_indstryty_nm, opts)}
   </td>
   <td>${renderProposalLink(row)}</td>
