@@ -177,26 +177,42 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const countResult = await db
-    .prepare(`SELECT COUNT(DISTINCT bid_ntce_no) as total FROM bids ${where}`)
+    .prepare(
+      `
+      WITH ranked AS (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY bid_ntce_no ORDER BY bid_ntce_ord DESC) as rn FROM bids
+      ),
+      latest_bids AS (
+        SELECT * FROM ranked WHERE rn = 1
+      )
+      SELECT COUNT(*) as total FROM latest_bids ${where}
+    `.trim(),
+    )
     .bind(...bindings)
     .first<{ total: number }>();
 
   const total = countResult?.total ?? 0;
 
   const querySql = `
-    WITH raw_filtered AS (
-      SELECT * FROM bids ${where}
-    ),
-    ranked AS (
+    WITH ranked AS (
       SELECT *,
-             ROW_NUMBER() OVER (PARTITION BY bid_ntce_no ORDER BY bid_ntce_ord DESC) as rn,
-             (SELECT GROUP_CONCAT(b2.bid_ntce_ord, ',') FROM bids b2 WHERE b2.bid_ntce_no = raw_filtered.bid_ntce_no ORDER BY b2.bid_ntce_ord ASC) as history_ords
-      FROM raw_filtered
+             ROW_NUMBER() OVER (PARTITION BY bid_ntce_no ORDER BY bid_ntce_ord DESC) as rn
+      FROM bids
+    ),
+    latest_bids AS (
+      SELECT * FROM ranked WHERE rn = 1
+    ),
+    filtered AS (
+      SELECT * FROM latest_bids ${where}
+    ),
+    paginated AS (
+      SELECT * FROM filtered
+      ORDER BY bid_ntce_date DESC, bid_ntce_no DESC
+      LIMIT ? OFFSET ?
     )
-    SELECT * FROM ranked
-    WHERE rn = 1
-    ORDER BY bid_ntce_date DESC, bid_ntce_no DESC
-    LIMIT ? OFFSET ?
+    SELECT *,
+           (SELECT GROUP_CONCAT(b2.bid_ntce_ord, ',') FROM bids b2 WHERE b2.bid_ntce_no = paginated.bid_ntce_no ORDER BY b2.bid_ntce_ord ASC) as history_ords
+    FROM paginated
   `.trim();
 
   const rows = await db

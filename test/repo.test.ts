@@ -276,4 +276,15 @@ describe("searchBids latest ord and history tracking", () => {
       expect(single456.history_ords).toBe("00");
     }
   });
+
+  it("ignores matches on older ords if the latest ord does not match", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "123", bidNtceOrd: "00", bidNtceNm: "AI 플랫폼 v0" }),
+      bid({ bidNtceNo: "123", bidNtceOrd: "01", bidNtceNm: "포털 고도화 v1" }),
+    ]);
+
+    const res = await searchBids(env.DB, { q: "플랫폼" });
+    expect(res.rows).toHaveLength(0);
+    expect(res.total).toBe(0);
+  });
 });

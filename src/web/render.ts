@@ -56,7 +56,7 @@ export function renderStatusBadge(
 
   if (isClosedStatus || isExpired) {
     cls = "badge-closed";
-    const displayText = isExpired && status === "공고중" ? "마감" : status;
+    const displayText = isExpired && !isClosedStatus ? "마감" : status;
     return `<span class="badge ${cls}">${escapeHtml(displayText)}</span>`;
   }
 

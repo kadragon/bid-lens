@@ -234,4 +234,25 @@ describe("renderPage history badge and expired status", () => {
     expect(html).toContain("마감");
     expect(html).not.toContain('class="badge badge-open"');
   });
+
+  it("forces closed badge when bid_clse_date is in the past for non-공고중 status", () => {
+    const result: SearchResult = {
+      rows: [
+        row({
+          bid_ntce_no: "exp-progress",
+          bid_ntce_sttus_nm: "진행",
+          bid_clse_date: "2026-05-28",
+        }),
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    };
+
+    const html = renderPage(result, baseQueryWithToday);
+
+    expect(html).toContain("badge-closed");
+    expect(html).toContain("마감");
+    expect(html).not.toContain('class="badge badge-open"');
+  });
 });
