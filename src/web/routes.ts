@@ -9,6 +9,13 @@ import { renderPage } from "./render";
 
 export const webRouter = new Hono<{ Bindings: Env }>();
 
+export function getKstToday(): string {
+  const now = new Date();
+  // KST는 UTC+9
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return kst.toISOString().split("T")[0] ?? "";
+}
+
 interface SearchInput {
   q: string;
   dmnd: string;
@@ -16,6 +23,7 @@ interface SearchInput {
   to: string;
   page: number;
   pageSize?: number;
+  today?: string;
 }
 
 function buildSearchParams(input: SearchInput): SearchParams {
@@ -27,6 +35,7 @@ function buildSearchParams(input: SearchInput): SearchParams {
   if (input.from) params.from = input.from;
   if (input.to) params.to = input.to;
   if (input.pageSize !== undefined) params.pageSize = input.pageSize;
+  if (input.today) params.today = input.today;
   return params;
 }
 
@@ -47,9 +56,10 @@ webRouter.get("/", async (c) => {
   const from = c.req.query("from") ?? "";
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
+  const today = getKstToday();
 
   const [result, filterRules] = await Promise.all([
-    searchBids(c.env.DB, buildSearchParams({ q, dmnd, from, to, page })),
+    searchBids(c.env.DB, buildSearchParams({ q, dmnd, from, to, page, today })),
     getFilterRules(c.env.DB),
   ]);
 
@@ -63,7 +73,7 @@ webRouter.get("/", async (c) => {
     }
   }
 
-  const html = renderPage(result, { q, dmnd, from, to, page }, { isAdmin, filterRules });
+  const html = renderPage(result, { q, dmnd, from, to, page, today }, { isAdmin, filterRules });
   return c.html(html);
 });
 
@@ -74,10 +84,11 @@ webRouter.get("/api/bids", async (c) => {
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
   const pageSize = Math.min(100, Math.max(1, Number(c.req.query("pageSize") ?? "20")));
+  const today = getKstToday();
 
   const result = await searchBids(
     c.env.DB,
-    buildSearchParams({ q, dmnd, from, to, page, pageSize }),
+    buildSearchParams({ q, dmnd, from, to, page, pageSize, today }),
   );
 
   return c.json(result);

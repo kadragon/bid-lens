@@ -37,6 +37,9 @@ strict 전부 on + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`. �
 
 모든 쿼리는 `src/db/repo.ts`에만. 라우트/수집기는 repo 함수 경유. 바인딩 파라미터 사용 (문자열 보간 금지 — SQL injection).
 
+- **FTS5 하이브리드 검색**: FTS5 `MATCH`를 사용할 때는 특수 기호(예: `%`, `_`, `"`)의 리터럴 매칭 정확도 보존을 위해 FTS5 검색과 SQL `LIKE` 필터를 AND로 중첩 결합하여 하이브리드로 사용합니다.
+- **최신 차수 단일 노출**: 동일 공고번호(`bid_ntce_no`) 중 중복을 피해 최신 차수만 목록에 가져오기 위해 `ROW_NUMBER() OVER (PARTITION BY bid_ntce_no ORDER BY bid_ntce_ord DESC)` Window Function을 활용합니다.
+
 ## 날짜 컬럼 포맷
 
 `bid_ntce_date`·`bid_clse_date` 등 D1 날짜 컬럼은 OpenAPI raw 값 그대로 **`YYYY-MM-DD`** (대시, 날짜만, 시간 없음 — 시간은 `bid_clse_tm` 별도 컬럼)로 저장. `client.ts`는 변환 없이 적재.

@@ -30,10 +30,10 @@ src/
 ## 데이터 흐름
 
 **수집 (scheduled):**
-`client.ts` 페이지네이션 fetch → `filter.isTargetBid` 통과분만 → `repo.upsert` (PK 중복 무시).
+`client.ts` 페이지네이션 fetch → `filter.isTargetBid` 통과분만 → `repo.upsert` (PK 중복 무시) → `bids_fts` 가상 테이블 동기화 (트리거 자동 작동).
 
 **검색 (fetch):**
-`routes.ts` 쿼리파라미터 → `repo` LIKE 검색 → `render.ts` HTML / JSON 응답.
+`routes.ts` 쿼리파라미터 → `repo` FTS5 MATCH + LIKE 하이브리드 검색 & Window Function을 활용한 최신 차수 단일 노출 및 이력 취합 → `render.ts` HTML / JSON 응답 (이전 차수 뱃지 렌더링).
 
 ## D1 스키마
 
@@ -44,10 +44,14 @@ src/
 - `collected_at` — 수집 시각 (NOT NULL).
 - 금액: `asign_bdgt_amt`, `presmpt_prce` INTEGER.
 
+가상 테이블 `bids_fts` & 트리거 (`migrations/0005_bids_fts.sql`)
+- **FTS5 가상 테이블**: `bid_ntce_nm` 및 `dmnd_instt_nm` 전문 검색용 가상 테이블 (`unicode61` 토크나이저).
+- **트리거**: `bids` 테이블에 대한 `INSERT/UPDATE/DELETE` 동작 시 자동으로 FTS5 데이터를 싱크하는 `bids_ai`, `bids_au`, `bids_ad` 트리거 운용.
+
 스키마 변경 → 새 `migrations/000N_*.sql` 추가 (기존 수정 금지), `pnpm migrate:local`로 검증.
 
 ## 알려진 제약
 
-- 검색: LIKE 기반. 복잡 전문검색 필요 시 FTS5 가상테이블 추가 가능.
-- 보존: 현재 전량 보존 (마감 지난 공고 포함).
+- 검색: FTS5 MATCH와 SQL LIKE가 결합된 하이브리드 방식. (인덱스 탐색 성능과 특수문자 리터럴 매칭 정확도를 동시 확보).
+- 보존: 현재 전량 보존 (과거 프로젝트 분석을 위해 마감/취소된 공고도 전량 검색 노출).
 - 프록시가 `type=json`이어도 XML 에러 봉투 반환 가능 — `client.ts`에서 처리.
