@@ -52,6 +52,17 @@ function escapeLike(v: string): string {
   return v.replace(/[\\%_]/g, "\\$&");
 }
 
+function hasSpecialChars(query: string): boolean {
+  return /[\\%_"]/.test(query);
+}
+
+function shouldApplyFts(query: string): boolean {
+  if (hasSpecialChars(query)) return false;
+  const tokens = query.trim().split(/\s+/).filter(Boolean);
+  // 모든 검색 토큰이 3글자 이상일 때만 FTS 인덱스 활용 (중간글자 매칭 누락 방지)
+  return tokens.length > 0 && tokens.every((t) => t.length >= 3);
+}
+
 /**
  * 사용자 입력 문자열을 FTS5 MATCH 쿼리에 적합하도록 변환합니다.
  * - 공백을 기준으로 단어를 분리합니다.
@@ -139,7 +150,8 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
   const bindings: (string | number)[] = [];
 
   if (params.q) {
-    const ftsQuery = buildFtsQuery("bid_ntce_nm", params.q);
+    const useFts = shouldApplyFts(params.q);
+    const ftsQuery = useFts ? buildFtsQuery("bid_ntce_nm", params.q) : null;
     if (ftsQuery) {
       conditions.push(
         "(bid_ntce_no, bid_ntce_ord) IN (SELECT bid_ntce_no, bid_ntce_ord FROM bids_fts WHERE bids_fts MATCH ?)",
@@ -153,7 +165,8 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
     }
   }
   if (params.dmnd) {
-    const ftsQuery = buildFtsQuery("dmnd_instt_nm", params.dmnd);
+    const useFts = shouldApplyFts(params.dmnd);
+    const ftsQuery = useFts ? buildFtsQuery("dmnd_instt_nm", params.dmnd) : null;
     if (ftsQuery) {
       conditions.push(
         "(bid_ntce_no, bid_ntce_ord) IN (SELECT bid_ntce_no, bid_ntce_ord FROM bids_fts WHERE bids_fts MATCH ?)",
