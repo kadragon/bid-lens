@@ -18,12 +18,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.16",
-    "@cloudflare/vitest-pool-workers": "^0.16.10",
-    "@cloudflare/workers-types": "^4.20260529.1",
+    "@cloudflare/vitest-pool-workers": "^0.16.13",
+    "@cloudflare/workers-types": "^4.20260605.1",
     "lefthook": "^2.1.9",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.7",
-    "wrangler": "^4.87.0"
+    "vitest": "^4.1.8",
+    "wrangler": "^4.98.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
