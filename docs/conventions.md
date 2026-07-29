@@ -1,49 +1,49 @@
 # Conventions
 
-Biome/tsconfig가 강제하는 규칙은 여기 중복 안 함. 에이전트가 자주 틀리는 것만.
+Rules already enforced by Biome or tsconfig are not repeated here. This file covers only what agents get wrong repeatedly.
 
-## 수집 필터 — `isTargetBid`
+## Collection Filter — `isTargetBid`
 
-`src/collector/filter.ts`. **변경 전 `test/filter.test.ts` Red→Green 필수.**
+Lives in `src/collector/filter.ts`. **Changing it requires Red→Green in `test/filter.test.ts` first.**
 
-순서대로 AND 조건:
+AND conditions, in order:
 
-1. `dmndInsttNm` "대학" 포함
-2. `dmndInsttNm` "병원" 미포함
+1. `dmndInsttNm` contains `대학`
+2. `dmndInsttNm` does not contain `병원`
 3. `bsnsDivNm == "용역"`
-4. `bidNtceNm` "유지보수" 미포함
-5. `bidprcPsblIndstrytyNm` 쉼표 분리 세그먼트 중 — SW 키워드 포함 AND 제외 업종 미포함
+4. `bidNtceNm` does not contain `유지보수`
+5. Among the comma-separated segments of `bidprcPsblIndstrytyNm` — contains an SW keyword AND contains no excluded industry
 
-- SW 키워드: `소프트웨어`, `컴퓨터`, `정보보호`, `이러닝서비스업`, `정보통신`
-- 제외 업종: `디지털콘텐츠개발서비스사업`
+- SW keywords: `소프트웨어`, `컴퓨터`, `정보보호`, `이러닝서비스업`, `정보통신`
+- Excluded industries: `디지털콘텐츠개발서비스사업`
 
-`filter.ts`는 순수 함수 유지 — 외부 의존/IO 금지. 새 키워드는 상수 배열에 추가.
+Keep `filter.ts` a pure function — no external dependencies, no IO. Add new keywords to the constant arrays.
 
-## TDD 규칙
+## TDD Rules
 
-- 필터 규칙 변경 → `filter.test.ts`에 새 실패 케이스 추가(Red), 확인 후 Green 구현. **기존 케이스 수정 금지.**
-- D1 repo 변경 → `test/repo.test.ts` 통합 테스트 추가 (`@cloudflare/vitest-pool-workers`로 실제 D1).
-- 모킹 기본 금지 — 통합 테스트 우선. 외부 IO/비결정적 의존만 모킹.
+- Filter rule change → add a new failing case to `filter.test.ts` (Red), confirm it fails, then implement (Green). **Never modify existing cases.**
+- D1 repo change → add an integration test to `test/repo.test.ts` (real D1 via `@cloudflare/vitest-pool-workers`).
+- Mocking is disallowed by default — integration tests come first. Mock only external IO and non-deterministic dependencies.
 
 ## TypeScript
 
-strict 전부 on + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`. 의미:
+Full strict mode plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. What that means in practice:
 
-- 배열/객체 인덱싱 결과는 `T | undefined` — 좁히기 필수.
-- optional 프로퍼티에 `undefined` 명시 할당 불가 — 키 자체를 생략.
-- `any` 금지. 타입 모르면 `unknown` 후 좁히기.
+- Indexing an array or object yields `T | undefined` — narrowing is mandatory.
+- An optional property cannot be explicitly assigned `undefined` — omit the key itself.
+- No `any`. If the type is unknown, use `unknown` and narrow.
 
 ## SQL
 
-모든 쿼리는 `src/db/repo.ts`에만. 라우트/수집기는 repo 함수 경유. 바인딩 파라미터 사용 (문자열 보간 금지 — SQL injection).
+Every query belongs in `src/db/repo.ts`. Routes and the collector go through repo functions. Always use bound parameters — never string interpolation (SQL injection).
 
-- **FTS5 하이브리드 검색**: FTS5 `MATCH`를 사용할 때는 특수 기호(예: `%`, `_`, `"`)의 리터럴 매칭 정확도 보존을 위해 FTS5 검색과 SQL `LIKE` 필터를 AND로 중첩 결합하여 하이브리드로 사용합니다.
-- **최신 차수 단일 노출**: 동일 공고번호(`bid_ntce_no`) 중 중복을 피해 최신 차수만 목록에 가져오기 위해 `ROW_NUMBER() OVER (PARTITION BY bid_ntce_no ORDER BY bid_ntce_ord DESC)` Window Function을 활용합니다.
+- **Hybrid FTS5 search:** when using FTS5 `MATCH`, AND it together with a SQL `LIKE` filter. The hybrid preserves literal matching accuracy for special characters such as `%`, `_`, and `"`.
+- **Single latest revision:** to surface one row per notice number (`bid_ntce_no`) without duplicates, use `ROW_NUMBER() OVER (PARTITION BY bid_ntce_no ORDER BY bid_ntce_ord DESC)`.
 
-## 날짜 컬럼 포맷
+## Date Column Format
 
-`bid_ntce_date`·`bid_clse_date` 등 D1 날짜 컬럼은 OpenAPI raw 값 그대로 **`YYYY-MM-DD`** (대시, 날짜만, 시간 없음 — 시간은 `bid_clse_tm` 별도 컬럼)로 저장. `client.ts`는 변환 없이 적재.
+D1 date columns such as `bid_ntce_date` and `bid_clse_date` store the raw OpenAPI value as **`YYYY-MM-DD`** — dashed, date only, no time (time lives in the separate `bid_clse_tm` column). `client.ts` loads it without conversion.
 
-- 비교 시 **포맷 변환 금지** — 대시 `YYYY-MM-DD`는 고정폭·zero-pad라 사전순=시간순. `>=`/`<=` 그대로 정확. 변환(대시 제거 등)하면 비교가 조용히 깨짐 (실제 from/to 버그 원인).
-- `<input type="date">` 입력값도 `YYYY-MM-DD` → 그대로 바인딩.
-- 빈값은 `""`로 저장 (NULL 아님 — `BidItem` 필드가 non-null string). 필터에서 `IS NULL OR = ''` 둘 다 처리.
+- **Never convert the format for comparisons.** Dashed `YYYY-MM-DD` is fixed-width and zero-padded, so lexicographic order equals chronological order and `>=` / `<=` are exact as-is. Converting (stripping dashes, for instance) silently breaks comparison — this was the actual cause of the from/to bug.
+- `<input type="date">` values are also `YYYY-MM-DD`, so they bind directly.
+- Empty values are stored as `""`, not NULL (`BidItem` fields are non-null strings). Filters must handle both `IS NULL` and `= ''`.

@@ -8,5 +8,6 @@ dist/
 *.local
 .antigravitycli/
 .playwright-mcp/
+.agents/.maintenance-stamp
 desktop.png
 mobile.png
