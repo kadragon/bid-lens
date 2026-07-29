@@ -27,7 +27,7 @@ The orchestrator must pass these four fields:
 
 ## Protocol
 
-1. Read the Acceptance criteria from the Sprint Contract in `tasks.md`.
+1. Read the Acceptance criteria from the Sprint Contract in `tasks.md`. If no Sprint Contract block matches the diff under review, stop and report `[blocked — no Sprint Contract for this change]`. Never grade against an unrelated block or self-authored criteria (Golden Principle #6).
 2. Read the four grading criteria and pass threshold in `docs/eval-criteria.md`.
 3. Run `pnpm typecheck && pnpm lint && pnpm test`. **Quote the output verbatim** — do not summarize it.
 4. List pass/fail per Acceptance criteria item with evidence (file:line or test case name) first.
@@ -38,7 +38,7 @@ The orchestrator must pass these four fields:
 
 Beyond generic QA, always confirm:
 
-- **Existing tests not weakened** — run `git diff test/` and check whether any existing case was modified, deleted, or skipped. If so, Verifiability scores 1 and the sprint fails, per the automatic penalty in `docs/eval-criteria.md`.
+- **Existing tests not weakened** — diff the test tree over the range given in the spawn objective (`git diff <base>...HEAD -- test/`); with no range, use `git diff HEAD -- test/` so staged edits are included. If an existing case was modified, deleted, or skipped, judge whether it was **weakened to get a green run** — assertions loosened, cases removed, `.skip` added. Only then does Verifiability score 1 and the sprint fail, per the automatic penalty in `docs/eval-criteria.md`. A strengthened assertion or a legitimately updated expectation is not a failure; state the evidence either way.
 - **Red proof on filter changes** — if `src/collector/filter.ts` changed, confirm a **new** failing case was added to `test/filter.test.ts`.
 - **Migrations** — fail if any existing file under `migrations/` was modified. Only new `000N_*.sql` files are allowed.
 - **PK preserved** — `(bid_ntce_no, bid_ntce_ord)` constraint intact (AGENTS.md Golden Principle #2).

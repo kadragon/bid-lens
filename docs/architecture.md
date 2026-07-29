@@ -15,6 +15,7 @@ src/
   types.ts          # Env binding types (DB, secrets)
   collector/        # External data collection — 나라장터 (KONEPS) OpenAPI
     client.ts       #   fetch + pagination + XML error-envelope handling
+    collect.ts      #   collection orchestration — client → filter → repo
     filter.ts       #   isTargetBid — pure function, no external dependencies
     types.ts        #   BidItem, API response types
   db/
@@ -22,9 +23,12 @@ src/
   web/
     routes.ts       #   HTTP routes (Hono)
     render.ts       #   HTML templates (server-rendered, no SPA)
+    admin.ts        #   Admin routes — login/session, filter-rule CRUD, manual collection
+    render-admin.ts #   Admin HTML templates
+    favicon.ts      #   Inline favicon SVG constant
 ```
 
-**Dependency direction:** `index` → {`collector`, `db`, `web`}. `web` → `db` (search). `collector` → `db` (upsert). `filter.ts` is pure — no module imports it, which keeps it trivially testable.
+**Dependency direction:** `index` → {`collector`, `db`, `web`}. `web` → `db` (search). `collector` → `db` (upsert). `filter.ts` is pure — it imports no other module, which keeps it trivially testable. It is consumed by `collector/collect.ts`, `db/repo.ts`, and `web/render.ts`, so its exported signatures (`isTargetBid`, `classifySegments`, `DEFAULT_RULES`, `FilterRules`, `RULE_TYPES`) are a shared contract.
 
 **SQL isolation:** every D1 query lives in `db/repo.ts`. Routes and the collector call repo functions instead.
 

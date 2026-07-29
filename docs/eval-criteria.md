@@ -139,7 +139,7 @@ After the FTS5 virtual table landed, `upsertBids` returned `changes()`, which co
 
 Unescaped LIKE wildcards fixed in `src/db/repo.ts` (PR #4): user input containing `%`, `_`, or `\` changed matching semantics, resolved with `escapeLike()` plus an `ESCAPE '\'` clause.
 
-**Why 5:** a reproducing test (`test/repo.test.ts`, "LIKE 와일드카드 이스케이프") was added first and confirmed Red, then the minimal change turned it green. It is a real D1 integration test with no mocking, and no existing case was touched.
+**Why 5:** reproducing tests (`test/repo.test.ts:75`, describe "searchBids FTS5 searching and escaping" — cases "matches q percent literally" / "matches dmnd underscore literally") were added first and confirmed Red, then the minimal change turned them green. It is a real D1 integration test with no mocking, and no existing case was touched.
 
 ## Calibration Tuning
 
