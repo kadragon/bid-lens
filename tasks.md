@@ -1,33 +1,3 @@
-# Security Fixes — Dependabot transitive alerts
-status: open
-
-All three open GitHub security alerts are **transitive** — none appear directly in `package.json`; they arrive via `vitest` / `@cloudflare/vitest-pool-workers` / `wrangler`. Fix by refreshing the lockfile, or pin with a `package.json` `overrides` block.
-
-Exposure note: all three are Windows dev-server issues, so real-world exposure for this repo is low. Patch to clear the alerts, not because production is at risk.
-
-## Scope
-
-- `pnpm-lock.yaml` — lockfile refresh
-- `package.json` — `overrides` block, only if a plain refresh does not reach the required versions
-
-## Acceptance criteria
-
-- [ ] `vite` (transitive, via vitest) resolves to `>=7.3.5` — one bump clears both vite alerts:
-  - HIGH — `server.fs.deny` bypass via Windows alternate paths (GHSA-fx2h-pf6j-xcff)
-  - MODERATE — bundled launch-editor discloses NTLMv2 hash via UNC path handling on Windows (GHSA-v6wh-96g9-6wx3)
-- [ ] `esbuild` (transitive) resolves to `>=0.28.1` — LOW, arbitrary file read via dev server on Windows (GHSA-g7r4-m6w7-qqqr)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` green after the bump
-- [ ] GitHub security alerts for this repo show zero open Dependabot entries
-
-## Out of scope
-
-- Upgrading `vitest` / `wrangler` major versions
-- Any runtime dependency change (all three alerts are dev-only)
-
-## Lint/test command
-
-pnpm typecheck && pnpm lint && pnpm test
-
 ## Review Backlog
 
 ### PR #2 — [FEAT] render.ts UI 리디자인 (2026-05-29)
