@@ -62,6 +62,8 @@ pnpm deploy       # wrangler deploy
 
 Solo-developed. **Inline is the default** — no standing orchestrator. Objective triggers and the 4-field contract live in `docs/delegation.md`.
 
+**Overrides global `~/.claude/CLAUDE.md` Delegation gate** (10+ files · 3+ independent units · only when asked). This repo spawns at lower thresholds and makes `qa-verifier` mandatory without a user ask. Repo wins — do not re-derive.
+
 - **Mandatory (blocking):** always spawn `qa-verifier` after a source edit. Whoever implemented must never verify their own work. The only named role (`.claude/agents/qa-verifier.md`).
 - **Conditional:** first read of a >300 LOC file · touching ≥2 directories · implementing ≥3 files · analyzing >20 lines of output → `general-purpose`.
 - Everything else is inline. Create a dedicated role once the same delegation type recurs 3×.
@@ -78,12 +80,6 @@ Solo-developed. **Inline is the default** — no standing orchestrator. Objectiv
 ## Language Policy
 
 `docs/*.md`, `.claude/agents/*.md`, code, comments, commit messages, and PRs are **English**. Only user-facing conversation is Korean. Domain terms that exist only in Korean (`대학`, `용역`, filter keywords, KONEPS field labels) stay in Korean — they are data, not prose. Matching a neighboring file's language never overrides this rule.
-
-## Git Rules
-
-- Never commit directly to `main` — branch first.
-- Commit types: `[FEAT]` `[FIX]` `[TEST]` `[REFACTOR]` `[HARNESS]` `[CONSTRAINT]` `[DOCS]` `[PLAN]`.
-- pre-commit: typecheck + lint + test all green.
 
 <!-- harness:verbatim — harness-init Step 3 mandated block; do not trim as boilerplate -->
 ## Maintenance
