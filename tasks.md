@@ -1,34 +1,9 @@
-# Security Fixes — Dependabot transitive alerts
-status: open
-
-All three open GitHub security alerts are **transitive** — none appear directly in `package.json`; they arrive via `vitest` / `@cloudflare/vitest-pool-workers` / `wrangler`. Fix by refreshing the lockfile, or pin with a `package.json` `overrides` block.
-
-Exposure note: all three are Windows dev-server issues, so real-world exposure for this repo is low. Patch to clear the alerts, not because production is at risk.
-
-## Scope
-
-- `pnpm-lock.yaml` — lockfile refresh
-- `package.json` — `overrides` block, only if a plain refresh does not reach the required versions
-
-## Acceptance criteria
-
-- [ ] `vite` (transitive, via vitest) resolves to `>=7.3.5` — one bump clears both vite alerts:
-  - HIGH — `server.fs.deny` bypass via Windows alternate paths (GHSA-fx2h-pf6j-xcff)
-  - MODERATE — bundled launch-editor discloses NTLMv2 hash via UNC path handling on Windows (GHSA-v6wh-96g9-6wx3)
-- [ ] `esbuild` (transitive) resolves to `>=0.28.1` — LOW, arbitrary file read via dev server on Windows (GHSA-g7r4-m6w7-qqqr)
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` green after the bump
-- [ ] GitHub security alerts for this repo show zero open Dependabot entries
-
-## Out of scope
-
-- Upgrading `vitest` / `wrangler` major versions
-- Any runtime dependency change (all three alerts are dev-only)
-
-## Lint/test command
-
-pnpm typecheck && pnpm lint && pnpm test
-
 ## Review Backlog
+
+### PR #42 — [FIX] Dependabot 전이 취약점 (vite/esbuild) (2026-07-29)
+
+- [ ] [debt] `package.json`의 `pnpm.onlyBuiltDependencies` 블록은 죽은 설정 — pnpm ≥10이 무시하며 매 명령마다 `The "pnpm" field in package.json is no longer read by pnpm` 경고 출력. `pnpm-workspace.yaml`의 `allowBuilds`가 이미 대체 중이므로 제거 (source: 구현 중 확인) — `package.json`
+- [ ] [debt] `biome.json` `$schema`가 2.4.16에 고정 / `linter.recommended` deprecated — biome CLI 2.5.5와 불일치해 `pnpm lint`마다 info 2건. `biome migrate` 실행으로 해소 (source: 구현 중 확인) — `biome.json:2`
 
 ### PR #2 — [FEAT] render.ts UI 리디자인 (2026-05-29)
 

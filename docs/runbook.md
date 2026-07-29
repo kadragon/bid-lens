@@ -16,6 +16,16 @@ pnpm deploy           # wrangler deploy
 
 pre-commit (lefthook) runs typecheck + lint + test in sequence; all three must be green for the commit to go through.
 
+## pnpm Configuration
+
+The pnpm version is pinned once, in `package.json` `"packageManager"`. CI (`pnpm/action-setup`) and
+Cloudflare Workers Builds both read it — never re-pin a version in `.github/workflows/ci.yml`. A CI
+pnpm older than the one that wrote the lockfile fails `pnpm install --frozen-lockfile` with
+`ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
+
+pnpm settings live in `pnpm-workspace.yaml` (`overrides`, `allowBuilds`). The `pnpm` field in
+`package.json` is **not read** by pnpm ≥10 — moving settings there silently disables them.
+
 ## Env / Secrets
 
 | Name | Kind | Description |
