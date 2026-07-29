@@ -2,6 +2,7 @@
   "name": "bid-lens",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@11.17.0",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

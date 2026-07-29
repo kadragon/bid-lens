@@ -1,5 +1,10 @@
 ## Review Backlog
 
+### PR #42 — [FIX] Dependabot 전이 취약점 (vite/esbuild) (2026-07-29)
+
+- [ ] [debt] `package.json`의 `pnpm.onlyBuiltDependencies` 블록은 죽은 설정 — pnpm ≥10이 무시하며 매 명령마다 `The "pnpm" field in package.json is no longer read by pnpm` 경고 출력. `pnpm-workspace.yaml`의 `allowBuilds`가 이미 대체 중이므로 제거 (source: 구현 중 확인) — `package.json`
+- [ ] [debt] `biome.json` `$schema`가 2.4.16에 고정 / `linter.recommended` deprecated — biome CLI 2.5.5와 불일치해 `pnpm lint`마다 info 2건. `biome migrate` 실행으로 해소 (source: 구현 중 확인) — `biome.json:2`
+
 ### PR #2 — [FEAT] render.ts UI 리디자인 (2026-05-29)
 
 - [~] [debt] CDN 폰트 SRI 없음 + 공공망분리 차단 위험 — **won't-fix (2026-05-29)**: 망분리 환경 접속 비대상이라 차단 위험 무효, CDN 폰트 유지 (source: code-review, pr-review-toolkit:review-pr) — `src/web/render.ts:57–58`
