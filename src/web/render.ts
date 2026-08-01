@@ -363,7 +363,7 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
       <input name="from" type="date" value="${escapeHtml(query.from)}" title="공고일 시작" />
       <input name="to" type="date" value="${escapeHtml(query.to)}" title="공고일 종료" />
-      <label class="check-inline" title="마감일이 지난 공고도 표시">
+      <label class="check-inline" title="마감일이 지났거나 취소·종료된 공고도 표시">
         <input type="checkbox" name="includeClosed" value="1"${query.includeClosed ? " checked" : ""} />
         마감 포함
       </label>

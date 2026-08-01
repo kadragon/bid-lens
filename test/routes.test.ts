@@ -89,3 +89,57 @@ describe("GET / bid notice date from/to filter", () => {
     expect(html).not.toContain("범위밖공고XYZ");
   });
 });
+
+// Route-level guard: the includeClosed wiring is what commit 704eada silently deleted.
+// repo.test.ts covers the SQL and render.test.ts the markup — only these assert that the
+// query param actually reaches searchBids, so a repeat deletion cannot pass a green suite.
+describe("includeClosed query param wiring", () => {
+  async function seedCancelled() {
+    await upsertBids(env.DB, [
+      bid({
+        bidNtceNo: "cancelled",
+        bidNtceNm: "취소공고ABC",
+        bidNtceSttusNm: "취소",
+        bidClseDate: "2099-12-31",
+      }),
+      bid({
+        bidNtceNo: "open",
+        bidNtceNm: "정상공고XYZ",
+        bidNtceSttusNm: "공고중",
+        bidClseDate: "2099-12-31",
+      }),
+    ]);
+  }
+
+  it("omits closed notices from /api/bids by default", async () => {
+    await seedCancelled();
+
+    const res = await webRouter.request("/api/bids", {}, testEnv);
+    const body = (await res.json()) as { rows: { bid_ntce_no: string }[]; total: number };
+
+    expect(body.rows.map((r) => r.bid_ntce_no)).toEqual(["open"]);
+    expect(body.total).toBe(1);
+  });
+
+  it.each(["1", "true"])("includes closed notices when includeClosed=%s", async (value) => {
+    await seedCancelled();
+
+    const res = await webRouter.request(`/api/bids?includeClosed=${value}`, {}, testEnv);
+    const body = (await res.json()) as { rows: { bid_ntce_no: string }[]; total: number };
+
+    expect(body.rows.map((r) => r.bid_ntce_no).sort()).toEqual(["cancelled", "open"]);
+    expect(body.total).toBe(2);
+  });
+
+  it("passes includeClosed through GET / to the rendered page", async () => {
+    await seedCancelled();
+
+    const def = await (await webRouter.request("/", {}, testEnv)).text();
+    const inc = await (await webRouter.request("/?includeClosed=1", {}, testEnv)).text();
+
+    expect(def).not.toContain("취소공고ABC");
+    expect(def).toContain("정상공고XYZ");
+    expect(inc).toContain("취소공고ABC");
+    expect(inc).toContain('name="includeClosed" value="1" checked');
+  });
+});
