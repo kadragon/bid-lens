@@ -1,5 +1,5 @@
 import { classifySegments, type FilterRules } from "../collector/filter";
-import type { BidRow, SearchResult } from "../db/repo";
+import { type BidRow, CLOSED_STATUS_KEYWORDS, type SearchResult } from "../db/repo";
 
 /** 배정예산(원) → X.X억원 */
 export function formatAmount(amount: number | null): string {
@@ -52,7 +52,7 @@ export function renderStatusBadge(
   let cls = "badge-default";
 
   const isExpired = closeDate && closeDate !== "" && closeDate < refToday;
-  const isClosedStatus = /마감|취소|종료|개찰/.test(status);
+  const isClosedStatus = CLOSED_STATUS_KEYWORDS.some((kw) => status.includes(kw));
 
   if (isClosedStatus || isExpired) {
     cls = "badge-closed";
@@ -72,6 +72,7 @@ interface SearchQuery {
   from: string;
   to: string;
   page: number;
+  includeClosed?: boolean;
   today?: string;
 }
 
@@ -362,6 +363,10 @@ export function renderPage(result: SearchResult, query: SearchQuery, opts?: Rend
       <input name="dmnd" type="text" placeholder="수요기관" value="${escapeHtml(query.dmnd)}" />
       <input name="from" type="date" value="${escapeHtml(query.from)}" title="공고일 시작" />
       <input name="to" type="date" value="${escapeHtml(query.to)}" title="공고일 종료" />
+      <label class="check-inline" title="마감일이 지난 공고도 표시">
+        <input type="checkbox" name="includeClosed" value="1"${query.includeClosed ? " checked" : ""} />
+        마감 포함
+      </label>
       <button type="submit" class="btn-primary">검색</button>
       <a href="/" class="btn-secondary">초기화</a>
     </form>
@@ -510,6 +515,7 @@ function renderPagination(
     if (query.dmnd) params.set("dmnd", query.dmnd);
     if (query.from) params.set("from", query.from);
     if (query.to) params.set("to", query.to);
+    if (query.includeClosed) params.set("includeClosed", "1");
     params.set("page", String(p));
     return `/?${params.toString()}`;
   };

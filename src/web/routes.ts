@@ -23,6 +23,7 @@ interface SearchInput {
   to: string;
   page: number;
   pageSize?: number;
+  includeClosed?: boolean;
   today?: string;
 }
 
@@ -35,6 +36,7 @@ function buildSearchParams(input: SearchInput): SearchParams {
   if (input.from) params.from = input.from;
   if (input.to) params.to = input.to;
   if (input.pageSize !== undefined) params.pageSize = input.pageSize;
+  if (input.includeClosed !== undefined) params.includeClosed = input.includeClosed;
   if (input.today) params.today = input.today;
   return params;
 }
@@ -56,10 +58,12 @@ webRouter.get("/", async (c) => {
   const from = c.req.query("from") ?? "";
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
+  const includeClosed =
+    c.req.query("includeClosed") === "1" || c.req.query("includeClosed") === "true";
   const today = getKstToday();
 
   const [result, filterRules] = await Promise.all([
-    searchBids(c.env.DB, buildSearchParams({ q, dmnd, from, to, page, today })),
+    searchBids(c.env.DB, buildSearchParams({ q, dmnd, from, to, page, includeClosed, today })),
     getFilterRules(c.env.DB),
   ]);
 
@@ -73,7 +77,11 @@ webRouter.get("/", async (c) => {
     }
   }
 
-  const html = renderPage(result, { q, dmnd, from, to, page, today }, { isAdmin, filterRules });
+  const html = renderPage(
+    result,
+    { q, dmnd, from, to, page, includeClosed, today },
+    { isAdmin, filterRules },
+  );
   return c.html(html);
 });
 
@@ -84,11 +92,13 @@ webRouter.get("/api/bids", async (c) => {
   const to = c.req.query("to") ?? "";
   const page = Math.max(1, Number(c.req.query("page") ?? "1"));
   const pageSize = Math.min(100, Math.max(1, Number(c.req.query("pageSize") ?? "20")));
+  const includeClosed =
+    c.req.query("includeClosed") === "1" || c.req.query("includeClosed") === "true";
   const today = getKstToday();
 
   const result = await searchBids(
     c.env.DB,
-    buildSearchParams({ q, dmnd, from, to, page, pageSize, today }),
+    buildSearchParams({ q, dmnd, from, to, page, pageSize, includeClosed, today }),
   );
 
   return c.json(result);

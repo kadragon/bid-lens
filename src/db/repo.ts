@@ -25,6 +25,9 @@ export interface BidRow {
   history_ords?: string;
 }
 
+/** 마감 상태 어휘 — 검색 필터(`searchBids`)와 상태 배지(`renderStatusBadge`)가 공유하는 단일 원천. */
+export const CLOSED_STATUS_KEYWORDS = ["마감", "취소", "종료", "개찰"] as const;
+
 export interface SearchParams {
   q?: string;
   dmnd?: string;
@@ -32,6 +35,9 @@ export interface SearchParams {
   to?: string;
   page?: number;
   pageSize?: number;
+  /** true면 마감 지난 공고 포함. 기본 false → 마감 공고 제외. */
+  includeClosed?: boolean;
+  /** 마감 기준일 YYYY-MM-DD (KST). includeClosed=false일 때만 사용. 생략 시 마감 필터 비활성. */
   today?: string;
 }
 
@@ -187,6 +193,22 @@ export async function searchBids(db: D1Database, params: SearchParams): Promise<
     conditions.push("bid_ntce_date <= ?");
     bindings.push(params.to);
   }
+  // 마감 지난 공고 제외 (soft 필터 — 삭제 없음). bid_clse_date 저장 포맷은 YYYY-MM-DD
+  // (prod 확인 — client.ts raw 저장). today도 동일 포맷이라 사전순=시간순 비교 성립.
+  // 컬럼 미래핑 → idx_bids_clse 사용. null·빈값은 정보 없음 → 숨기지 않음.
+  if (!params.includeClosed && params.today) {
+    conditions.push("(bid_clse_date IS NULL OR bid_clse_date = '' OR bid_clse_date >= ?)");
+    bindings.push(params.today);
+
+    // 마감/취소 상태 공고 제외 — 미래 마감일이어도 상태가 종료면 노출 대상 아님.
+    // 키워드는 고정 내부 상수라 LIKE 메타문자 없음 → escapeLike/ESCAPE 불필요.
+    const statusNotLike = CLOSED_STATUS_KEYWORDS.map(() => "bid_ntce_sttus_nm NOT LIKE ?").join(
+      " AND ",
+    );
+    conditions.push(`(bid_ntce_sttus_nm IS NULL OR (${statusNotLike}))`);
+    for (const keyword of CLOSED_STATUS_KEYWORDS) bindings.push(`%${keyword}%`);
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const countResult = await db
