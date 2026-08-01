@@ -4,6 +4,7 @@ import { DEFAULT_RULES } from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";
 import {
   addFilterRule,
+  CLOSED_STATUS_KEYWORDS,
   deleteFilterRule,
   getFilterRules,
   listFilterRules,
@@ -69,6 +70,72 @@ describe("searchBids close-date handling", () => {
     const nos = res.rows.map((r) => r.bid_ntce_no).sort();
 
     expect(nos).toEqual(["a", "b"]);
+  });
+});
+
+const TODAY = "2026-05-29";
+
+describe("searchBids closed-notice soft filter", () => {
+  it("excludes a cancelled notice even when its close date is in the future", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "cancelled", bidNtceSttusNm: "취소", bidClseDate: "2026-12-31" }),
+      bid({ bidNtceNo: "open", bidNtceSttusNm: "공고중", bidClseDate: "2026-12-31" }),
+    ]);
+
+    const res = await searchBids(env.DB, { today: TODAY });
+
+    expect(res.rows.map((r) => r.bid_ntce_no)).toEqual(["open"]);
+    expect(res.total).toBe(1);
+  });
+
+  it("excludes every closed status keyword and keeps a NULL status", async () => {
+    await upsertBids(env.DB, [
+      ...CLOSED_STATUS_KEYWORDS.map((kw, i) =>
+        bid({ bidNtceNo: `closed-${i}`, bidNtceSttusNm: `입찰${kw}`, bidClseDate: "2026-12-31" }),
+      ),
+      bid({ bidNtceNo: "nostatus", bidClseDate: "2026-12-31" }),
+      bid({ bidNtceNo: "open", bidClseDate: "2026-12-31" }),
+    ]);
+    await env.DB.prepare(
+      "UPDATE bids SET bid_ntce_sttus_nm = NULL WHERE bid_ntce_no = 'nostatus'",
+    ).run();
+
+    const res = await searchBids(env.DB, { today: TODAY });
+    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
+
+    expect(nos).toEqual(["nostatus", "open"]);
+  });
+
+  it("excludes a past close date and keeps NULL or empty ones", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" }),
+      bid({ bidNtceNo: "today", bidClseDate: TODAY }),
+      bid({ bidNtceNo: "future", bidClseDate: "2026-06-01" }),
+      bid({ bidNtceNo: "empty", bidClseDate: "" }),
+      bid({ bidNtceNo: "nullish", bidClseDate: "" }),
+    ]);
+    await env.DB.prepare(
+      "UPDATE bids SET bid_clse_date = NULL WHERE bid_ntce_no = 'nullish'",
+    ).run();
+
+    const res = await searchBids(env.DB, { today: TODAY });
+    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
+
+    expect(nos).toEqual(["empty", "future", "nullish", "today"]);
+  });
+
+  it("returns closed notices when includeClosed is set", async () => {
+    await upsertBids(env.DB, [
+      bid({ bidNtceNo: "cancelled", bidNtceSttusNm: "취소", bidClseDate: "2026-12-31" }),
+      bid({ bidNtceNo: "past", bidClseDate: "2026-05-28" }),
+      bid({ bidNtceNo: "open", bidClseDate: "2026-12-31" }),
+    ]);
+
+    const res = await searchBids(env.DB, { today: TODAY, includeClosed: true });
+    const nos = res.rows.map((r) => r.bid_ntce_no).sort();
+
+    expect(nos).toEqual(["cancelled", "open", "past"]);
+    expect(res.total).toBe(3);
   });
 });
 

@@ -149,24 +149,32 @@ describe("renderPage search form", () => {
     expect(html).toContain('<link rel="icon" type="image/svg+xml" href="/favicon.svg" />');
   });
 
-  it("does not render closed filter controls", () => {
+  it("renders the closed filter checkbox unchecked by default", () => {
     const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
     const html = renderPage(result, baseQuery);
 
-    expect(html).not.toContain("마감 포함");
-    expect(html).not.toContain('name="includeClosed"');
+    expect(html).toContain('name="includeClosed" value="1"');
+    expect(html).toContain("마감 포함");
+    expect(html).not.toContain('name="includeClosed" value="1" checked');
   });
 
-  it("does not preserve closed filter in pagination", () => {
+  it("checks the closed filter checkbox when the query sets it", () => {
+    const result: SearchResult = { rows: [], total: 0, page: 1, pageSize: 20 };
+    const html = renderPage(result, { ...baseQuery, includeClosed: true });
+
+    expect(html).toContain('name="includeClosed" value="1" checked');
+  });
+
+  it("preserves closed filter in pagination only when set", () => {
     const result: SearchResult = {
       rows: [row({ bid_ntce_no: "a" })],
       total: 50,
       page: 1,
       pageSize: 20,
     };
-    const html = renderPage(result, baseQuery);
 
-    expect(html).not.toContain("includeClosed=1");
+    expect(renderPage(result, { ...baseQuery, includeClosed: true })).toContain("includeClosed=1");
+    expect(renderPage(result, baseQuery)).not.toContain("includeClosed=1");
   });
 
   it("renders proposal request link column", () => {
