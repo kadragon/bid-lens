@@ -1,5 +1,6 @@
 {
   "enabledPlugins": {
-    "pyright-lsp@claude-plugins-official": false
+    "pyright-lsp@claude-plugins-official": false,
+    "humanize-korean@im-not-ai": false
   }
 }
