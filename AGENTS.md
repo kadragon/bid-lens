@@ -47,16 +47,7 @@ Violations block the commit. Each one has a mechanical enforcement mechanism.
 
 ## Commands
 
-```bash
-pnpm dev          # local (wrangler dev)
-pnpm test         # vitest run
-pnpm typecheck    # tsc --noEmit
-pnpm lint         # biome check .
-pnpm lint:fix     # biome check --write .
-pnpm migrate:local    # D1 migrations — local
-pnpm migrate:remote   # D1 migrations — deployed
-pnpm deploy       # wrangler deploy
-```
+See `docs/runbook.md`.
 
 ## Delegation
 
