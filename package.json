@@ -15,15 +15,15 @@
     "migrate:remote": "wrangler d1 migrations apply bid-lens --remote"
   },
   "dependencies": {
-    "hono": "^4.13.7"
+    "hono": "^4.13.13"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.11",
-    "@cloudflare/vitest-pool-workers": "^0.22.0",
-    "@cloudflare/workers-types": "^5.20260901.1",
-    "lefthook": "^2.1.12",
+    "@biomejs/biome": "^2.5.15",
+    "@cloudflare/vitest-pool-workers": "^0.23.0",
+    "@cloudflare/workers-types": "^5.20261013.1",
+    "lefthook": "^2.2.2",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11",
-    "wrangler": "^4.127.1"
+    "vitest": "^5.0.4",
+    "wrangler": "^4.150.0"
   }
 }
