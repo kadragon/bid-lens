@@ -22,7 +22,7 @@ Keep `filter.ts` a pure function — no external dependencies, no IO. Add new ke
 ## TDD Rules
 
 - Filter rule change → add a new failing case to `filter.test.ts` (Red), confirm it fails, then implement (Green). **Never modify existing cases.**
-- D1 repo change → add an integration test to `test/repo.test.ts` (real D1 via `@cloudflare/vitest-pool-workers`).
+- D1 repo change → add an integration test to `test/repo.test.ts` (real D1 via `@cloudflare/vitest-plugin`).
 - Mocking is disallowed by default — integration tests come first. Mock only external IO and non-deterministic dependencies.
 
 ## TypeScript
