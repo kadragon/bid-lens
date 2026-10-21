@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "scripts": {
+    "CI": "pnpm typecheck && pnpm lint && pnpm test",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
@@ -19,8 +20,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",
-    "@cloudflare/vitest-pool-workers": "^0.23.0",
-    "@cloudflare/workers-types": "^5.20261014.1",
+    "@cloudflare/vitest-plugin": "^1.4.6",
+    "@cloudflare/workers-types": "^5.20261019.1",
     "lefthook": "^2.2.2",
     "typescript": "^7.0.2",
     "vitest": "^5.0.4",

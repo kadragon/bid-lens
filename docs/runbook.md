@@ -4,6 +4,7 @@
 
 ```bash
 pnpm dev              # Local development — wrangler dev
+pnpm CI               # Typecheck, lint, and tests — same command as GitHub Actions
 pnpm test             # vitest run (includes D1 integration)
 pnpm test:watch       # vitest watch
 pnpm typecheck        # tsc --noEmit
@@ -19,7 +20,7 @@ pre-commit (lefthook) runs typecheck + lint + test in sequence; all three must b
 ## pnpm Configuration
 
 The pnpm version is pinned once, in `package.json` `"packageManager"`. CI (`pnpm/action-setup`) and
-Cloudflare Workers Builds both read it — never re-pin a version in `.github/workflows/ci.yml`. A CI
+Cloudflare Workers Builds both read it — never re-pin a version in `.github/workflows/CI.yml`. A CI
 pnpm older than the one that wrote the lockfile fails `pnpm install --frozen-lockfile` with
 `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
 

@@ -3,7 +3,7 @@ packages:
 
 # Transitive security pins (GHSA-fx2h-pf6j-xcff, GHSA-v6wh-96g9-6wx3, GHSA-g7r4-m6w7-qqqr).
 # vite arrives as a vitest peer, so its version is not reachable from package.json ranges.
-# Drop these once vitest/@cloudflare/vitest-pool-workers resolve the patched versions on their own.
+# Drop these once vitest/@cloudflare/vitest-plugin resolve the patched versions on their own.
 overrides:
   vite: ^7.3.6
   esbuild: ^0.28.1
@@ -14,3 +14,8 @@ allowBuilds:
   lefthook: true
   sharp: true
   workerd: true
+
+minimumReleaseAgeExclude:
+  - '@cloudflare/vitest-plugin@1.4.6'
+  - miniflare@5.20261019.1-beta
+  - wrangler@4.151.3
