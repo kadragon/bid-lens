@@ -16,25 +16,12 @@ import {
   DEFAULT_RULES,
   type FilterInput,
   type FilterRules,
+  parseFilterInputs,
+  parseFilterRules,
   type VerdictChange,
 } from "../src/collector/filter.ts";
 
 type Sample = FilterInput & { bidNtceNo?: string };
-
-const RULE_KEYS: readonly (keyof FilterRules)[] = [
-  "dmndInclude",
-  "dmndExclude",
-  "bsnsDivEquals",
-  "nameExclude",
-  "industryInclude",
-  "industryExclude",
-];
-const SAMPLE_KEYS: readonly (keyof FilterInput)[] = [
-  "dmndInsttNm",
-  "bsnsDivNm",
-  "bidNtceNm",
-  "bidprcPsblIndstrytyNm",
-];
 
 function fail(message: string): never {
   console.error(`filter-trial: ${message}`);
@@ -49,42 +36,28 @@ function readJson(path: string): unknown {
   }
 }
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null && !Array.isArray(v);
-}
-
-// Mirrors production: addFilterRule trims and rejects empty patterns, and getFilterRules falls
-// back to DEFAULT_RULES when no rule is enabled (src/db/repo.ts).
 function loadRules(path: string): FilterRules {
   const raw = readJson(path);
-  if (!isRecord(raw)) fail(`${path}: expected a FilterRules object`);
-  const rules: Partial<FilterRules> = {};
-  for (const key of RULE_KEYS) {
-    const v = raw[key];
-    if (!Array.isArray(v) || !v.every((p) => typeof p === "string")) {
-      fail(`${path}: "${key}" must be a string array`);
+  try {
+    const { rules, usedDefault } = parseFilterRules(raw);
+    if (usedDefault) {
+      console.log(`※ ${path}: 활성 규칙 0건 → 운영과 같이 DEFAULT_RULES 로 대체합니다.`);
     }
-    const patterns = v.map((p: string) => p.trim());
-    if (patterns.includes("")) fail(`${path}: "${key}" has an empty pattern`);
-    rules[key] = patterns;
+    return rules;
+  } catch (e) {
+    fail(`${path}: ${e instanceof Error ? e.message : String(e)}`);
   }
-  if (RULE_KEYS.every((key) => rules[key]?.length === 0)) {
-    console.log(`※ ${path}: 활성 규칙 0건 → 운영과 같이 DEFAULT_RULES 로 대체합니다.`);
-    return DEFAULT_RULES;
-  }
-  return rules as FilterRules;
 }
 
 function loadSamples(path: string): Sample[] {
   const raw = readJson(path);
-  if (!Array.isArray(raw)) fail(`${path}: expected an array of notices`);
-  return raw.map((item, i) => {
-    if (!isRecord(item)) fail(`${path}[${i}]: expected an object`);
-    for (const key of SAMPLE_KEYS) {
-      if (typeof item[key] !== "string") fail(`${path}[${i}]: "${key}" must be a string`);
-    }
-    return item as Sample;
-  });
+  try {
+    return parseFilterInputs(raw);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    // Item errors start with "[i]" — join without a separator so the output reads path[i]: ...
+    fail(message.startsWith("[") ? `${path}${message}` : `${path}: ${message}`);
+  }
 }
 
 function describeVerdict(v: BidVerdict): string {

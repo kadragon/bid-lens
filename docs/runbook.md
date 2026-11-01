@@ -30,7 +30,7 @@ pnpm filter:trial --samples test/fixtures/filter-samples.json --draft draft.json
 - Samples are any JSON array of notices with `dmndInsttNm`, `bsnsDivNm`, `bidNtceNm`, `bidprcPsblIndstrytyNm` (raw KONEPS items fit).
 - Output lists newly excluded / newly included notices with the deciding `rule_type` and keyword. It reads local files only (no network, no D1) and decides through `explainBid`, the same function `isTargetBid` uses.
 - Results cover the samples only. Rejected notices are never stored, so the D1 table cannot reveal what a rule drops.
-- Runs on Node's built-in TypeScript stripping; `scripts/` is outside `tsconfig` (no Node types), so its logic stays thin and `compareRules` is tested in `test/filter.test.ts`.
+- Runs on Node's built-in TypeScript stripping; `scripts/` is outside `tsconfig` (no Node types), so the script stays thin (file reading, printing, exit codes). `compareRules` and the pure parse/validate functions (`parseFilterRules`, `parseFilterInputs`) live in `src/collector/filter.ts` and are tested in `test/filter.test.ts`.
 
 ## pnpm Configuration
 
