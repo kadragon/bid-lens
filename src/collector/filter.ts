@@ -173,3 +173,54 @@ export function compareRules<T extends FilterInput>(
   }
   return result;
 }
+
+const RULE_KEYS: readonly (keyof FilterRules)[] = [
+  "dmndInclude",
+  "dmndExclude",
+  "bsnsDivEquals",
+  "nameExclude",
+  "industryInclude",
+  "industryExclude",
+];
+const INPUT_KEYS: readonly (keyof FilterInput)[] = [
+  "dmndInsttNm",
+  "bsnsDivNm",
+  "bidNtceNm",
+  "bidprcPsblIndstrytyNm",
+];
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+// Mirrors production: addFilterRule trims and rejects empty patterns, and getFilterRules falls
+// back to DEFAULT_RULES when no rule is enabled (src/db/repo.ts). Pure: throws Error on bad input.
+export function parseFilterRules(raw: unknown): { rules: FilterRules; usedDefault: boolean } {
+  if (!isRecord(raw)) throw new Error("expected a FilterRules object");
+  const rules: Partial<FilterRules> = {};
+  for (const key of RULE_KEYS) {
+    const v = raw[key];
+    if (!Array.isArray(v) || !v.every((p) => typeof p === "string")) {
+      throw new Error(`"${key}" must be a string array`);
+    }
+    const patterns = v.map((p: string) => p.trim());
+    if (patterns.includes("")) throw new Error(`"${key}" has an empty pattern`);
+    rules[key] = patterns;
+  }
+  if (RULE_KEYS.every((key) => rules[key]?.length === 0)) {
+    return { rules: DEFAULT_RULES, usedDefault: true };
+  }
+  return { rules: rules as FilterRules, usedDefault: false };
+}
+
+// Validates sample notices for the rule trial; items are returned as-is (extra fields kept).
+export function parseFilterInputs(raw: unknown): (FilterInput & Record<string, unknown>)[] {
+  if (!Array.isArray(raw)) throw new Error("expected an array of notices");
+  return raw.map((item: unknown, i) => {
+    if (!isRecord(item)) throw new Error(`[${i}]: expected an object`);
+    for (const key of INPUT_KEYS) {
+      if (typeof item[key] !== "string") throw new Error(`[${i}]: "${key}" must be a string`);
+    }
+    return item as FilterInput & Record<string, unknown>;
+  });
+}

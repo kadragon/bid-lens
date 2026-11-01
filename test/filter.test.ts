@@ -6,6 +6,8 @@ import {
   explainBid,
   type FilterRules,
   isTargetBid,
+  parseFilterInputs,
+  parseFilterRules,
 } from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";
 import samples from "./fixtures/filter-samples.json";
@@ -389,5 +391,87 @@ describe("filter samples fixture", () => {
     expect(result.newlyExcluded).toEqual([]);
     expect(result.newlyIncluded).toEqual([]);
     expect(result.unchanged).toBe(sampleBids.length);
+  });
+});
+
+describe("parseFilterRules", () => {
+  const valid = {
+    dmndInclude: ["대학교"],
+    dmndExclude: ["병원"],
+    bsnsDivEquals: ["용역"],
+    nameExclude: ["철거"],
+    industryInclude: ["소프트웨어"],
+    industryExclude: ["건축"],
+  };
+
+  it("returns exact rules with usedDefault false when any rule is set", () => {
+    expect(parseFilterRules(valid)).toEqual({ rules: valid, usedDefault: false });
+  });
+
+  it("trims patterns", () => {
+    const { rules } = parseFilterRules({ ...valid, dmndInclude: ["  대학교 "] });
+    expect(rules.dmndInclude).toEqual(["대학교"]);
+  });
+
+  it("rejects an empty pattern after trim", () => {
+    expect(() => parseFilterRules({ ...valid, dmndInclude: ["  "] })).toThrow(/dmndInclude/);
+  });
+
+  it("rejects non-object input", () => {
+    expect(() => parseFilterRules([])).toThrow(/FilterRules object/);
+    expect(() => parseFilterRules(null)).toThrow(/FilterRules object/);
+  });
+
+  it("rejects a missing key", () => {
+    const { nameExclude: _omit, ...rest } = valid;
+    expect(() => parseFilterRules(rest)).toThrow(/"nameExclude" must be a string array/);
+  });
+
+  it("rejects a non-string-array key", () => {
+    expect(() => parseFilterRules({ ...valid, industryExclude: [1] })).toThrow(/industryExclude/);
+    expect(() => parseFilterRules({ ...valid, bsnsDivEquals: "용역" })).toThrow(/bsnsDivEquals/);
+  });
+
+  it("falls back to DEFAULT_RULES when every array is empty", () => {
+    const empty = {
+      dmndInclude: [],
+      dmndExclude: [],
+      bsnsDivEquals: [],
+      nameExclude: [],
+      industryInclude: [],
+      industryExclude: [],
+    };
+    expect(parseFilterRules(empty)).toEqual({ rules: DEFAULT_RULES, usedDefault: true });
+  });
+});
+
+describe("parseFilterInputs", () => {
+  const item = {
+    bidNtceNo: "20250001",
+    dmndInsttNm: "한국대학교",
+    bsnsDivNm: "용역",
+    bidNtceNm: "학사관리시스템 구축",
+    bidprcPsblIndstrytyNm: "소프트웨어사업자",
+  };
+
+  it("rejects a non-array", () => {
+    expect(() => parseFilterInputs({})).toThrow(/array/);
+  });
+
+  it("rejects a non-object item with its index", () => {
+    expect(() => parseFilterInputs([item, "x"])).toThrow(/\[1\]/);
+    expect(() => parseFilterInputs([null])).toThrow(/\[0\]/);
+  });
+
+  it("rejects a missing or non-string key with key and index", () => {
+    const { bidNtceNm: _omit, ...rest } = item;
+    expect(() => parseFilterInputs([item, rest])).toThrow(/\[1\].*"bidNtceNm"/);
+    expect(() => parseFilterInputs([{ ...item, bsnsDivNm: 1 }])).toThrow(/\[0\].*"bsnsDivNm"/);
+  });
+
+  it("passes valid items through with extra fields preserved", () => {
+    const out = parseFilterInputs([item]);
+    expect(out).toEqual([item]);
+    expect(out[0]?.bidNtceNo).toBe("20250001");
   });
 });
