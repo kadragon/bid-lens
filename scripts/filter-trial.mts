@@ -54,7 +54,9 @@ function loadSamples(path: string): Sample[] {
   try {
     return parseFilterInputs(raw);
   } catch (e) {
-    fail(`${path}: ${e instanceof Error ? e.message : String(e)}`);
+    const message = e instanceof Error ? e.message : String(e);
+    // Item errors start with "[i]" — join without a separator so the output reads path[i]: ...
+    fail(message.startsWith("[") ? `${path}${message}` : `${path}: ${message}`);
   }
 }
 

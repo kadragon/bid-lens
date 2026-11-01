@@ -45,3 +45,8 @@
 - [x] [FEAT] [badge] 상태가 `"공고중"`이더라도 마감일(`bid_clse_date`)이 오늘 이전인 경우 `"마감"`(`badge-closed`) 배지로 렌더링되도록 수정 — `src/web/render.ts`
 - [x] [FEAT] [history] 동일 공고번호의 여러 차수 중 최신 차수만 목록에 단일 노출하고, 이전 차수 이력은 뱃지 링크(`00차`, `01차` 등)로 제목 옆에 렌더링 — `src/db/repo.ts` 및 `src/web/render.ts`
 - [x] [TEST] 이전 차수 뱃지 렌더링 검증, 과거 마감 공고의 마감 배지 전환 검증 및 최신 차수 필터링 통합 테스트 추가 — `test/render.test.ts` 및 `test/repo.test.ts`
+
+### PR #71 — [TEST] Move filter-trial rule/sample parsing into src and test it (2026-11-01)
+
+- [ ] [doc] docs/workflows.md (`sweep`: "Record findings in `tasks.md`"), docs/eval-criteria.md (Sprint Contract / below-threshold findings in `tasks.md`) and `.claude/agents/qa-verifier.md` (reads the contract only from `tasks.md`) predate the queue split — review backlog now lives in `backlog.md`, and a single-item sprint has no `tasks.md`, so qa-verifier must be handed the contract inline (source: code-review) — `docs/workflows.md:96`
+- [ ] [debt] `parseFilterRules` all-empty fallback returns the shared `DEFAULT_RULES` object (getFilterRules uses `structuredClone`); a caller mutating the result would corrupt the default — clone it and assert `not.toBe(DEFAULT_RULES)` (source: code-review) — `src/collector/filter.ts:211`
