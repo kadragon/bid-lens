@@ -53,6 +53,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
+// Mirrors production: addFilterRule trims and rejects empty patterns, and getFilterRules falls
+// back to DEFAULT_RULES when no rule is enabled (src/db/repo.ts).
 function loadRules(path: string): FilterRules {
   const raw = readJson(path);
   if (!isRecord(raw)) fail(`${path}: expected a FilterRules object`);
@@ -62,7 +64,13 @@ function loadRules(path: string): FilterRules {
     if (!Array.isArray(v) || !v.every((p) => typeof p === "string")) {
       fail(`${path}: "${key}" must be a string array`);
     }
-    rules[key] = v;
+    const patterns = v.map((p: string) => p.trim());
+    if (patterns.includes("")) fail(`${path}: "${key}" has an empty pattern`);
+    rules[key] = patterns;
+  }
+  if (RULE_KEYS.every((key) => rules[key]?.length === 0)) {
+    console.log(`※ ${path}: 활성 규칙 0건 → 운영과 같이 DEFAULT_RULES 로 대체합니다.`);
+    return DEFAULT_RULES;
   }
   return rules as FilterRules;
 }

@@ -26,7 +26,7 @@ Before saving a rule change in `/admin`, check which sample notices it flips:
 pnpm filter:trial --samples test/fixtures/filter-samples.json --draft draft.json [--current current.json]
 ```
 
-- `draft.json` / `current.json` are full `FilterRules` objects (all six camelCase keys, string arrays). `--current` defaults to `DEFAULT_RULES`, which can differ from the live D1 `filter_rules` — pass a snapshot to compare against production.
+- `draft.json` / `current.json` are full `FilterRules` objects (all six camelCase keys, string arrays). `--current` defaults to `DEFAULT_RULES`, which can differ from the live D1 `filter_rules` — pass a snapshot to compare against production. Like production, patterns are trimmed, empty patterns are rejected, and an all-empty rule set falls back to `DEFAULT_RULES`.
 - Samples are any JSON array of notices with `dmndInsttNm`, `bsnsDivNm`, `bidNtceNm`, `bidprcPsblIndstrytyNm` (raw KONEPS items fit).
 - Output lists newly excluded / newly included notices with the deciding `rule_type` and keyword. It reads local files only (no network, no D1) and decides through `explainBid`, the same function `isTargetBid` uses.
 - Results cover the samples only. Rejected notices are never stored, so the D1 table cannot reveal what a rule drops.

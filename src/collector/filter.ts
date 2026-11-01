@@ -74,20 +74,20 @@ export function classifySegments(indstrytyNm: string, rules: FilterRules): Segme
   });
 }
 
-/** 필터 판정에 쓰는 BidItem 필드. */
+/** BidItem fields the filter reads. */
 export type FilterInput = Pick<
   BidItem,
   "dmndInsttNm" | "bsnsDivNm" | "bidNtceNm" | "bidprcPsblIndstrytyNm"
 >;
 
-/** 판정 결과 + 근거. */
+/** Filter verdict plus the reason behind it. */
 export interface BidVerdict {
   pass: boolean;
-  /** 탈락시킨 조건. pass=true 이면 null. 업종 탈락은 industry_include / industry_exclude. */
+  /** Rule that rejected the bid; null when pass. Industry rejections use industry_include / industry_exclude. */
   rule: RuleType | null;
   /**
-   * 판정에 쓰인 패턴 — 탈락: 걸린 제외 패턴 (포함 조건 미충족이면 null),
-   * 통과: 매칭된 industryInclude 패턴 (industryInclude 빈 그룹이면 null).
+   * Pattern behind the verdict — on reject: the matched exclude pattern (null for an unmet include rule);
+   * on pass: the matched industryInclude pattern (null when industryInclude is empty).
    */
   keyword: string | null;
 }
@@ -97,15 +97,15 @@ function reject(rule: RuleType, keyword: string | null = null): BidVerdict {
 }
 
 /**
- * 대학 SW 용역 입찰공고 판정 + 근거 — isTargetBid 의 단일 구현.
+ * University SW service bid verdict with its reason — the single implementation behind isTargetBid.
  *
- * 조건 (AND, 순서대로 평가해 처음 실패한 조건을 보고):
- * 1. dmndInsttNm 이 dmndInclude 중 하나 포함 (빈 그룹 → skip)
- * 2. dmndInsttNm 이 dmndExclude 어느 것도 미포함
- * 3. bsnsDivNm 이 bsnsDivEquals 중 하나와 일치 (빈 그룹 → skip)
- * 4. bidNtceNm 이 nameExclude 어느 것도 미포함
- * 5. 업종 세그먼트 중 — industryInclude 포함 AND industryExclude 미포함 인 것 존재
- *    (industryInclude 빈 그룹 → 업종 제약 skip)
+ * Conditions (AND, evaluated in order; the first failing one is reported):
+ * 1. dmndInsttNm contains one of dmndInclude (empty group → skipped)
+ * 2. dmndInsttNm contains none of dmndExclude
+ * 3. bsnsDivNm equals one of bsnsDivEquals (empty group → skipped)
+ * 4. bidNtceNm contains none of nameExclude
+ * 5. Some industry segment matches industryInclude AND no industryExclude
+ *    (empty industryInclude → include constraint skipped)
  */
 export function explainBid(item: FilterInput, rules: FilterRules = DEFAULT_RULES): BidVerdict {
   if (
@@ -120,9 +120,9 @@ export function explainBid(item: FilterInput, rules: FilterRules = DEFAULT_RULES
   const nameExcluded = rules.nameExclude.find((kw) => item.bidNtceNm.includes(kw));
   if (nameExcluded !== undefined) return reject("name_exclude", nameExcluded);
 
-  // industryInclude 빈 그룹 → 포함 제약 해제. 단 industryExclude 는 항상 적용
-  // (dmnd/name exclude 와 일관). 세그먼트 단위 — exclude 안 걸린 세그먼트가 하나라도 있으면 통과.
-  // 포함 조건은 맞았으나 exclude 로 탈락한 세그먼트만 industry_exclude 근거로 보고.
+  // Empty industryInclude lifts the include constraint, but industryExclude always applies
+  // (consistent with dmnd/name exclude). Per segment — any segment not excluded passes.
+  // Only a segment that met the include rule and was then excluded is reported as industry_exclude.
   let excludedBy: string | null = null;
   for (const raw of item.bidprcPsblIndstrytyNm.split(",")) {
     const seg = raw.trim();
@@ -138,7 +138,7 @@ export function explainBid(item: FilterInput, rules: FilterRules = DEFAULT_RULES
   return excludedBy === null ? reject("industry_include") : reject("industry_exclude", excludedBy);
 }
 
-/** 대학 SW 용역 입찰공고 필터 — 규칙 주입형 순수 함수. 조건은 explainBid 참고. */
+/** University SW service bid filter — pure function with injected rules. Conditions: see explainBid. */
 export function isTargetBid(item: BidItem, rules: FilterRules = DEFAULT_RULES): boolean {
   return explainBid(item, rules).pass;
 }
@@ -150,15 +150,15 @@ export interface VerdictChange<T> {
 }
 
 export interface RuleComparison<T> {
-  /** before 통과 → after 탈락 */
+  /** passed under before, rejected under after */
   newlyExcluded: VerdictChange<T>[];
-  /** before 탈락 → after 통과 */
+  /** rejected under before, passed under after */
   newlyIncluded: VerdictChange<T>[];
-  /** 통과 여부가 같은 표본 수 */
+  /** samples whose pass/fail did not change */
   unchanged: number;
 }
 
-/** 표본에 두 규칙을 적용해 통과 여부가 바뀐 공고를 모은다 — 규칙 저장 전 시험용. */
+/** Apply both rule sets to the samples and collect bids whose pass/fail flips — for trying rules before saving. */
 export function compareRules<T extends FilterInput>(
   items: readonly T[],
   before: FilterRules,
