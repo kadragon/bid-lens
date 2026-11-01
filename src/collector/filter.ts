@@ -74,37 +74,102 @@ export function classifySegments(indstrytyNm: string, rules: FilterRules): Segme
   });
 }
 
+/** BidItem fields the filter reads. */
+export type FilterInput = Pick<
+  BidItem,
+  "dmndInsttNm" | "bsnsDivNm" | "bidNtceNm" | "bidprcPsblIndstrytyNm"
+>;
+
+/** Filter verdict plus the reason behind it. */
+export interface BidVerdict {
+  pass: boolean;
+  /** Rule that rejected the bid; null when pass. Industry rejections use industry_include / industry_exclude. */
+  rule: RuleType | null;
+  /**
+   * Pattern behind the verdict — on reject: the matched exclude pattern (null for an unmet include rule);
+   * on pass: the matched industryInclude pattern (null when industryInclude is empty).
+   */
+  keyword: string | null;
+}
+
+function reject(rule: RuleType, keyword: string | null = null): BidVerdict {
+  return { pass: false, rule, keyword };
+}
+
 /**
- * 대학 SW 용역 입찰공고 필터 — 규칙 주입형 순수 함수.
+ * University SW service bid verdict with its reason — the single implementation behind isTargetBid.
  *
- * 조건 (AND):
- * 1. dmndInsttNm 이 dmndInclude 중 하나 포함 (빈 그룹 → skip)
- * 2. dmndInsttNm 이 dmndExclude 어느 것도 미포함
- * 3. bsnsDivNm 이 bsnsDivEquals 중 하나와 일치 (빈 그룹 → skip)
- * 4. bidNtceNm 이 nameExclude 어느 것도 미포함
- * 5. 업종 세그먼트 중 — industryInclude 포함 AND industryExclude 미포함 인 것 존재
- *    (industryInclude 빈 그룹 → 업종 제약 skip)
+ * Conditions (AND, evaluated in order; the first failing one is reported):
+ * 1. dmndInsttNm contains one of dmndInclude (empty group → skipped)
+ * 2. dmndInsttNm contains none of dmndExclude
+ * 3. bsnsDivNm equals one of bsnsDivEquals (empty group → skipped)
+ * 4. bidNtceNm contains none of nameExclude
+ * 5. Some industry segment matches industryInclude AND no industryExclude
+ *    (empty industryInclude → include constraint skipped)
  */
-export function isTargetBid(item: BidItem, rules: FilterRules = DEFAULT_RULES): boolean {
+export function explainBid(item: FilterInput, rules: FilterRules = DEFAULT_RULES): BidVerdict {
   if (
     rules.dmndInclude.length > 0 &&
     !rules.dmndInclude.some((kw) => item.dmndInsttNm.includes(kw))
   )
-    return false;
-  if (rules.dmndExclude.some((kw) => item.dmndInsttNm.includes(kw))) return false;
-  if (rules.bsnsDivEquals.length > 0 && !rules.bsnsDivEquals.includes(item.bsnsDivNm)) return false;
-  if (rules.nameExclude.some((kw) => item.bidNtceNm.includes(kw))) return false;
+    return reject("dmnd_include");
+  const dmndExcluded = rules.dmndExclude.find((kw) => item.dmndInsttNm.includes(kw));
+  if (dmndExcluded !== undefined) return reject("dmnd_exclude", dmndExcluded);
+  if (rules.bsnsDivEquals.length > 0 && !rules.bsnsDivEquals.includes(item.bsnsDivNm))
+    return reject("bsns_div_equals");
+  const nameExcluded = rules.nameExclude.find((kw) => item.bidNtceNm.includes(kw));
+  if (nameExcluded !== undefined) return reject("name_exclude", nameExcluded);
 
-  const segments = item.bidprcPsblIndstrytyNm.split(",").map((s) => s.trim());
-
-  // industryInclude 빈 그룹 → 포함 제약 해제. 단 industryExclude 는 항상 적용
-  // (dmnd/name exclude 와 일관). 세그먼트 단위 — exclude 안 걸린 세그먼트가 하나라도 있으면 통과.
-  if (rules.industryInclude.length === 0) {
-    return segments.some((seg) => !rules.industryExclude.some((ex) => seg.includes(ex)));
+  // Empty industryInclude lifts the include constraint, but industryExclude always applies
+  // (consistent with dmnd/name exclude). Per segment — any segment not excluded passes.
+  // Only a segment that met the include rule and was then excluded is reported as industry_exclude.
+  let excludedBy: string | null = null;
+  for (const raw of item.bidprcPsblIndstrytyNm.split(",")) {
+    const seg = raw.trim();
+    let matchedBy: string | null = null;
+    if (rules.industryInclude.length > 0) {
+      matchedBy = rules.industryInclude.find((kw) => seg.includes(kw)) ?? null;
+      if (matchedBy === null) continue;
+    }
+    const segExcluded = rules.industryExclude.find((ex) => seg.includes(ex));
+    if (segExcluded === undefined) return { pass: true, rule: null, keyword: matchedBy };
+    excludedBy ??= segExcluded;
   }
+  return excludedBy === null ? reject("industry_include") : reject("industry_exclude", excludedBy);
+}
 
-  return segments.some((seg) => {
-    if (rules.industryExclude.some((ex) => seg.includes(ex))) return false;
-    return rules.industryInclude.some((kw) => seg.includes(kw));
-  });
+/** University SW service bid filter — pure function with injected rules. Conditions: see explainBid. */
+export function isTargetBid(item: BidItem, rules: FilterRules = DEFAULT_RULES): boolean {
+  return explainBid(item, rules).pass;
+}
+
+export interface VerdictChange<T> {
+  item: T;
+  before: BidVerdict;
+  after: BidVerdict;
+}
+
+export interface RuleComparison<T> {
+  /** passed under before, rejected under after */
+  newlyExcluded: VerdictChange<T>[];
+  /** rejected under before, passed under after */
+  newlyIncluded: VerdictChange<T>[];
+  /** samples whose pass/fail did not change */
+  unchanged: number;
+}
+
+/** Apply both rule sets to the samples and collect bids whose pass/fail flips — for trying rules before saving. */
+export function compareRules<T extends FilterInput>(
+  items: readonly T[],
+  before: FilterRules,
+  after: FilterRules,
+): RuleComparison<T> {
+  const result: RuleComparison<T> = { newlyExcluded: [], newlyIncluded: [], unchanged: 0 };
+  for (const item of items) {
+    const change = { item, before: explainBid(item, before), after: explainBid(item, after) };
+    if (change.before.pass === change.after.pass) result.unchanged++;
+    else if (change.before.pass) result.newlyExcluded.push(change);
+    else result.newlyIncluded.push(change);
+  }
+  return result;
 }

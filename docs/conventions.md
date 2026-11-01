@@ -19,6 +19,8 @@ AND conditions, in order:
 
 Keep `filter.ts` a pure function — no external dependencies, no IO. Add new keywords to the constant arrays.
 
+`explainBid` owns the pass/fail decision (verdict + deciding rule/keyword); `isTargetBid` and the `pnpm filter:trial` CLI both go through it. `classifySegments` (admin/web segment highlighting) re-implements the segment rule — change both together. Keep `filter.ts` free of runtime imports (type-only imports are fine) — the CLI loads it directly under Node type stripping.
+
 ## TDD Rules
 
 - Filter rule change → add a new failing case to `filter.test.ts` (Red), confirm it fails, then implement (Green). **Never modify existing cases.**

@@ -12,6 +12,7 @@
     "lint:fix": "biome check --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "filter:trial": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/filter-trial.mts",
     "migrate:local": "wrangler d1 migrations apply bid-lens --local",
     "migrate:remote": "wrangler d1 migrations apply bid-lens --remote"
   },
