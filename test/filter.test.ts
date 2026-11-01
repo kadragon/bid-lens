@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   classifySegments,
+  compareRules,
   DEFAULT_RULES,
+  explainBid,
   type FilterRules,
   isTargetBid,
 } from "../src/collector/filter";
 import type { BidItem } from "../src/collector/types";
+import samples from "./fixtures/filter-samples.json";
 
 function makeBid(overrides: Partial<BidItem> = {}): BidItem {
   return {
@@ -263,5 +266,128 @@ describe("classifySegments", () => {
     const result = classifySegments("", DEFAULT_RULES);
     expect(result).toHaveLength(1);
     expect(result[0]?.segment).toBe("");
+  });
+});
+
+describe("explainBid", () => {
+  it("passes with the matched industry keyword", () => {
+    expect(explainBid(makeBid(), DEFAULT_RULES)).toEqual({
+      pass: true,
+      rule: null,
+      keyword: "소프트웨어",
+    });
+  });
+
+  it("passes with null keyword when industry include is empty", () => {
+    expect(explainBid(makeBid(), rules({ industryInclude: [] }))).toEqual({
+      pass: true,
+      rule: null,
+      keyword: null,
+    });
+  });
+
+  it("reports demand include miss", () => {
+    expect(explainBid(makeBid({ dmndInsttNm: "행정안전부" }), DEFAULT_RULES)).toEqual({
+      pass: false,
+      rule: "dmnd_include",
+      keyword: null,
+    });
+  });
+
+  it("reports demand exclude keyword", () => {
+    expect(explainBid(makeBid({ dmndInsttNm: "한국교원대학교병원" }), DEFAULT_RULES)).toEqual({
+      pass: false,
+      rule: "dmnd_exclude",
+      keyword: "병원",
+    });
+  });
+
+  it("reports business type miss", () => {
+    expect(explainBid(makeBid({ bsnsDivNm: "물품" }), DEFAULT_RULES)).toEqual({
+      pass: false,
+      rule: "bsns_div_equals",
+      keyword: null,
+    });
+  });
+
+  it("reports name exclude keyword", () => {
+    expect(explainBid(makeBid({ bidNtceNm: "학사관리시스템 유지보수" }), DEFAULT_RULES)).toEqual({
+      pass: false,
+      rule: "name_exclude",
+      keyword: "유지보수",
+    });
+  });
+
+  it("reports industry include miss", () => {
+    expect(
+      explainBid(makeBid({ bidprcPsblIndstrytyNm: "건축설계및관련서비스업" }), DEFAULT_RULES),
+    ).toEqual({ pass: false, rule: "industry_include", keyword: null });
+  });
+
+  it("reports industry exclude keyword that removed an included segment", () => {
+    expect(explainBid(makeBid(), rules({ industryExclude: ["개발"] }))).toEqual({
+      pass: false,
+      rule: "industry_exclude",
+      keyword: "개발",
+    });
+  });
+});
+
+describe("compareRules", () => {
+  it("reports a bid newly excluded by an added name keyword", () => {
+    const target = makeBid({ bidNtceNm: "교원 연수 이러닝 플랫폼 구축" });
+    const other = makeBid({ bidNtceNo: "20250002" });
+    const draft = rules({ nameExclude: [...DEFAULT_RULES.nameExclude, "연수"] });
+
+    const result = compareRules([target, other], DEFAULT_RULES, draft);
+
+    expect(result.newlyIncluded).toEqual([]);
+    expect(result.newlyExcluded).toEqual([
+      {
+        item: target,
+        before: { pass: true, rule: null, keyword: "소프트웨어" },
+        after: { pass: false, rule: "name_exclude", keyword: "연수" },
+      },
+    ]);
+    expect(result.unchanged).toBe(1);
+  });
+
+  it("reports a bid newly included when an exclude keyword is removed", () => {
+    const target = makeBid({ bidNtceNm: "학사관리시스템 유지보수" });
+
+    const result = compareRules([target], DEFAULT_RULES, rules({ nameExclude: [] }));
+
+    expect(result.newlyExcluded).toEqual([]);
+    expect(result.newlyIncluded).toEqual([
+      {
+        item: target,
+        before: { pass: false, rule: "name_exclude", keyword: "유지보수" },
+        after: { pass: true, rule: null, keyword: "소프트웨어" },
+      },
+    ]);
+  });
+});
+
+describe("filter samples fixture", () => {
+  const sampleBids = samples.map((s) => makeBid(s));
+
+  it("trial verdict matches isTargetBid on every sample", () => {
+    expect(sampleBids.length).toBeGreaterThan(0);
+    for (const bid of sampleBids) {
+      expect(explainBid(bid, DEFAULT_RULES).pass, bid.bidNtceNo).toBe(isTargetBid(bid));
+    }
+  });
+
+  it("covers both verdicts", () => {
+    const passes = sampleBids.filter((bid) => isTargetBid(bid)).length;
+    expect(passes).toBeGreaterThan(0);
+    expect(passes).toBeLessThan(sampleBids.length);
+  });
+
+  it("reports no change for identical rules", () => {
+    const result = compareRules(sampleBids, DEFAULT_RULES, rules());
+    expect(result.newlyExcluded).toEqual([]);
+    expect(result.newlyIncluded).toEqual([]);
+    expect(result.unchanged).toBe(sampleBids.length);
   });
 });

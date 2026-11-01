@@ -10,12 +10,27 @@ pnpm test:watch       # vitest watch
 pnpm typecheck        # tsc --noEmit
 pnpm lint             # biome check .
 pnpm lint:fix         # biome check --write .
+pnpm filter:trial     # Compare draft filter rules on local samples — see below
 pnpm migrate:local    # D1 migrations — local
 pnpm migrate:remote   # D1 migrations — deployed environment
 pnpm deploy           # wrangler deploy
 ```
 
 pre-commit (lefthook) runs typecheck + lint + test in sequence; all three must be green for the commit to go through.
+
+## Filter Rule Trial
+
+Before saving a rule change in `/admin`, check which sample notices it flips:
+
+```bash
+pnpm filter:trial --samples test/fixtures/filter-samples.json --draft draft.json [--current current.json]
+```
+
+- `draft.json` / `current.json` are full `FilterRules` objects (all six camelCase keys, string arrays). `--current` defaults to `DEFAULT_RULES`, which can differ from the live D1 `filter_rules` — pass a snapshot to compare against production.
+- Samples are any JSON array of notices with `dmndInsttNm`, `bsnsDivNm`, `bidNtceNm`, `bidprcPsblIndstrytyNm` (raw KONEPS items fit).
+- Output lists newly excluded / newly included notices with the deciding `rule_type` and keyword. It reads local files only (no network, no D1) and decides through `explainBid`, the same function `isTargetBid` uses.
+- Results cover the samples only. Rejected notices are never stored, so the D1 table cannot reveal what a rule drops.
+- Runs on Node's built-in TypeScript stripping; `scripts/` is outside `tsconfig` (no Node types), so its logic stays thin and `compareRules` is tested in `test/filter.test.ts`.
 
 ## pnpm Configuration
 

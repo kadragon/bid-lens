@@ -74,10 +74,32 @@ export function classifySegments(indstrytyNm: string, rules: FilterRules): Segme
   });
 }
 
+/** 필터 판정에 쓰는 BidItem 필드. */
+export type FilterInput = Pick<
+  BidItem,
+  "dmndInsttNm" | "bsnsDivNm" | "bidNtceNm" | "bidprcPsblIndstrytyNm"
+>;
+
+/** 판정 결과 + 근거. */
+export interface BidVerdict {
+  pass: boolean;
+  /** 탈락시킨 조건. pass=true 이면 null. 업종 탈락은 industry_include / industry_exclude. */
+  rule: RuleType | null;
+  /**
+   * 판정에 쓰인 패턴 — 탈락: 걸린 제외 패턴 (포함 조건 미충족이면 null),
+   * 통과: 매칭된 industryInclude 패턴 (industryInclude 빈 그룹이면 null).
+   */
+  keyword: string | null;
+}
+
+function reject(rule: RuleType, keyword: string | null = null): BidVerdict {
+  return { pass: false, rule, keyword };
+}
+
 /**
- * 대학 SW 용역 입찰공고 필터 — 규칙 주입형 순수 함수.
+ * 대학 SW 용역 입찰공고 판정 + 근거 — isTargetBid 의 단일 구현.
  *
- * 조건 (AND):
+ * 조건 (AND, 순서대로 평가해 처음 실패한 조건을 보고):
  * 1. dmndInsttNm 이 dmndInclude 중 하나 포함 (빈 그룹 → skip)
  * 2. dmndInsttNm 이 dmndExclude 어느 것도 미포함
  * 3. bsnsDivNm 이 bsnsDivEquals 중 하나와 일치 (빈 그룹 → skip)
@@ -85,26 +107,69 @@ export function classifySegments(indstrytyNm: string, rules: FilterRules): Segme
  * 5. 업종 세그먼트 중 — industryInclude 포함 AND industryExclude 미포함 인 것 존재
  *    (industryInclude 빈 그룹 → 업종 제약 skip)
  */
-export function isTargetBid(item: BidItem, rules: FilterRules = DEFAULT_RULES): boolean {
+export function explainBid(item: FilterInput, rules: FilterRules = DEFAULT_RULES): BidVerdict {
   if (
     rules.dmndInclude.length > 0 &&
     !rules.dmndInclude.some((kw) => item.dmndInsttNm.includes(kw))
   )
-    return false;
-  if (rules.dmndExclude.some((kw) => item.dmndInsttNm.includes(kw))) return false;
-  if (rules.bsnsDivEquals.length > 0 && !rules.bsnsDivEquals.includes(item.bsnsDivNm)) return false;
-  if (rules.nameExclude.some((kw) => item.bidNtceNm.includes(kw))) return false;
-
-  const segments = item.bidprcPsblIndstrytyNm.split(",").map((s) => s.trim());
+    return reject("dmnd_include");
+  const dmndExcluded = rules.dmndExclude.find((kw) => item.dmndInsttNm.includes(kw));
+  if (dmndExcluded !== undefined) return reject("dmnd_exclude", dmndExcluded);
+  if (rules.bsnsDivEquals.length > 0 && !rules.bsnsDivEquals.includes(item.bsnsDivNm))
+    return reject("bsns_div_equals");
+  const nameExcluded = rules.nameExclude.find((kw) => item.bidNtceNm.includes(kw));
+  if (nameExcluded !== undefined) return reject("name_exclude", nameExcluded);
 
   // industryInclude 빈 그룹 → 포함 제약 해제. 단 industryExclude 는 항상 적용
   // (dmnd/name exclude 와 일관). 세그먼트 단위 — exclude 안 걸린 세그먼트가 하나라도 있으면 통과.
-  if (rules.industryInclude.length === 0) {
-    return segments.some((seg) => !rules.industryExclude.some((ex) => seg.includes(ex)));
+  // 포함 조건은 맞았으나 exclude 로 탈락한 세그먼트만 industry_exclude 근거로 보고.
+  let excludedBy: string | null = null;
+  for (const raw of item.bidprcPsblIndstrytyNm.split(",")) {
+    const seg = raw.trim();
+    let matchedBy: string | null = null;
+    if (rules.industryInclude.length > 0) {
+      matchedBy = rules.industryInclude.find((kw) => seg.includes(kw)) ?? null;
+      if (matchedBy === null) continue;
+    }
+    const segExcluded = rules.industryExclude.find((ex) => seg.includes(ex));
+    if (segExcluded === undefined) return { pass: true, rule: null, keyword: matchedBy };
+    excludedBy ??= segExcluded;
   }
+  return excludedBy === null ? reject("industry_include") : reject("industry_exclude", excludedBy);
+}
 
-  return segments.some((seg) => {
-    if (rules.industryExclude.some((ex) => seg.includes(ex))) return false;
-    return rules.industryInclude.some((kw) => seg.includes(kw));
-  });
+/** 대학 SW 용역 입찰공고 필터 — 규칙 주입형 순수 함수. 조건은 explainBid 참고. */
+export function isTargetBid(item: BidItem, rules: FilterRules = DEFAULT_RULES): boolean {
+  return explainBid(item, rules).pass;
+}
+
+export interface VerdictChange<T> {
+  item: T;
+  before: BidVerdict;
+  after: BidVerdict;
+}
+
+export interface RuleComparison<T> {
+  /** before 통과 → after 탈락 */
+  newlyExcluded: VerdictChange<T>[];
+  /** before 탈락 → after 통과 */
+  newlyIncluded: VerdictChange<T>[];
+  /** 통과 여부가 같은 표본 수 */
+  unchanged: number;
+}
+
+/** 표본에 두 규칙을 적용해 통과 여부가 바뀐 공고를 모은다 — 규칙 저장 전 시험용. */
+export function compareRules<T extends FilterInput>(
+  items: readonly T[],
+  before: FilterRules,
+  after: FilterRules,
+): RuleComparison<T> {
+  const result: RuleComparison<T> = { newlyExcluded: [], newlyIncluded: [], unchanged: 0 };
+  for (const item of items) {
+    const change = { item, before: explainBid(item, before), after: explainBid(item, after) };
+    if (change.before.pass === change.after.pass) result.unchanged++;
+    else if (change.before.pass) result.newlyExcluded.push(change);
+    else result.newlyIncluded.push(change);
+  }
+  return result;
 }

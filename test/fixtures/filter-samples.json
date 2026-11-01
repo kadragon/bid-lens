@@ -1,0 +1,72 @@
+[
+  {
+    "bidNtceNo": "S0001",
+    "bidNtceNm": "학사관리시스템 구축",
+    "dmndInsttNm": "한국교원대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "소프트웨어개발공급업"
+  },
+  {
+    "bidNtceNo": "S0002",
+    "bidNtceNm": "교원 연수 이러닝 플랫폼 구축",
+    "dmndInsttNm": "한국교원대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "이러닝서비스업"
+  },
+  {
+    "bidNtceNo": "S0003",
+    "bidNtceNm": "정보보호 관리체계 컨설팅",
+    "dmndInsttNm": "충북대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "정보보호서비스업, 디지털콘텐츠개발서비스사업"
+  },
+  {
+    "bidNtceNo": "S0004",
+    "bidNtceNm": "차세대 정보시스템 유지보수",
+    "dmndInsttNm": "부산대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "소프트웨어개발공급업"
+  },
+  {
+    "bidNtceNo": "S0005",
+    "bidNtceNm": "병원정보시스템 고도화",
+    "dmndInsttNm": "충남대학교병원",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "소프트웨어개발공급업"
+  },
+  {
+    "bidNtceNo": "S0006",
+    "bidNtceNm": "전산실 서버 구매",
+    "dmndInsttNm": "경북대학교",
+    "bsnsDivNm": "물품",
+    "bidprcPsblIndstrytyNm": "컴퓨터및주변장치"
+  },
+  {
+    "bidNtceNo": "S0007",
+    "bidNtceNm": "대학 홍보영상 제작",
+    "dmndInsttNm": "전남대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "디지털콘텐츠개발서비스사업"
+  },
+  {
+    "bidNtceNo": "S0008",
+    "bidNtceNm": "기숙사 리모델링 설계",
+    "dmndInsttNm": "강원대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "건축설계및관련서비스업"
+  },
+  {
+    "bidNtceNo": "S0009",
+    "bidNtceNm": "행정정보시스템 구축",
+    "dmndInsttNm": "행정안전부",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "소프트웨어개발공급업"
+  },
+  {
+    "bidNtceNo": "S0010",
+    "bidNtceNm": "캠퍼스 네트워크 고도화",
+    "dmndInsttNm": "제주대학교",
+    "bsnsDivNm": "용역",
+    "bidprcPsblIndstrytyNm": "정보통신공사업"
+  }
+]
