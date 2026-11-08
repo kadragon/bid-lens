@@ -1,11 +1,13 @@
 packages:
   - .
 
-# Transitive security pins (GHSA-fx2h-pf6j-xcff, GHSA-v6wh-96g9-6wx3, GHSA-g7r4-m6w7-qqqr).
+# Transitive security pins (vite, postcss, source-map-js, esbuild — see Dependabot alerts).
 # vite arrives as a vitest peer, so its version is not reachable from package.json ranges.
 # Drop these once vitest/@cloudflare/vitest-plugin resolve the patched versions on their own.
 overrides:
-  vite: ^7.3.6
+  vite: ^7.3.7
+  postcss: ^8.5.23
+  source-map-js: ^1.2.2
   esbuild: ^0.28.1
 
 allowBuilds:
