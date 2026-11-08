@@ -10,20 +10,20 @@ There is no standing orchestrator or agent team. `qa-verifier` is the only named
 
 Skipping this is treated as a Golden Principle violation.
 
-| Trigger (objective) | Delegate to | Context to pass |
-|---|---|---|
+| Trigger (objective)            | Delegate to   | Context to pass                                 |
+| ------------------------------ | ------------- | ----------------------------------------------- |
 | After any source edit — always | `qa-verifier` | Changed file list, Sprint Contract, `pnpm test` |
 
 `qa-verifier` **must** be a different instance from whoever implemented. Why this is the harness's only blocking gate: see `docs/eval-criteria.md` → self-evaluation leniency.
 
 ### Conditional gates
 
-| Trigger (objective) | Delegate to | Context to pass |
-|---|---|---|
-| Target file >300 LOC and not yet read this session | `general-purpose` (read-only exploration) | Absolute file path, `docs/architecture.md` |
-| Change touches ≥2 of `src/collector` / `src/db` / `src/web` | `general-purpose` (read-only exploration) | Changed paths, `docs/architecture.md` |
-| Implementation spans ≥3 files | `general-purpose` (implementation) | Sprint Contract, absolute paths, `pnpm test` |
-| Analyzing >20 lines of output (logs, large grep results) | `general-purpose` | Command/paths, the conclusion needed |
+| Trigger (objective)                                         | Delegate to                               | Context to pass                              |
+| ----------------------------------------------------------- | ----------------------------------------- | -------------------------------------------- |
+| Target file >300 LOC and not yet read this session          | `general-purpose` (read-only exploration) | Absolute file path, `docs/architecture.md`   |
+| Change touches ≥2 of `src/collector` / `src/db` / `src/web` | `general-purpose` (read-only exploration) | Changed paths, `docs/architecture.md`        |
+| Implementation spans ≥3 files                               | `general-purpose` (implementation)        | Sprint Contract, absolute paths, `pnpm test` |
+| Analyzing >20 lines of output (logs, large grep results)    | `general-purpose`                         | Command/paths, the conclusion needed         |
 
 Files over 300 LOC as of 2026-07: `src/web/render.ts` (540) · `src/web/render-admin.ts` (365) · `src/db/repo.ts` (364) · `src/web/admin.ts` (302).
 
@@ -51,31 +51,31 @@ Every spawn passes these four fields, without exception. Omitting any of them le
 
 Never write a subjective trigger. Agents consistently overestimate their own understanding and will rationalize their way past conditions like "unfamiliar module" every single time.
 
-| Rejected | Replace with |
-|---|---|
+| Rejected            | Replace with                                              |
+| ------------------- | --------------------------------------------------------- |
 | "unfamiliar module" | "first edit in this directory this session" or ">300 LOC" |
-| "complex change" | "touches ≥2 directories" or "≥3 files" |
-| "if unsure" | Remove the self-assessment; use a countable proxy |
-| "large refactor" | "≥N files modified in one commit" |
+| "complex change"    | "touches ≥2 directories" or "≥3 files"                    |
+| "if unsure"         | Remove the self-assessment; use a countable proxy         |
+| "large refactor"    | "≥N files modified in one commit"                         |
 
 ## Model Selection
 
-| Role | Model | Rationale |
-|---|---|---|
-| `qa-verifier` | sonnet | Checking against stated criteria — comparison, not open judgment |
-| Code exploration / summarizing | sonnet | Search, read, summarize |
-| Implementation | sonnet | Pattern-following coding |
-| Root-cause analysis (2nd attempt) | opus | After simpler approaches have failed |
+| Role                              | Model  | Rationale                                                        |
+| --------------------------------- | ------ | ---------------------------------------------------------------- |
+| `qa-verifier`                     | sonnet | Checking against stated criteria — comparison, not open judgment |
+| Code exploration / summarizing    | sonnet | Search, read, summarize                                          |
+| Implementation                    | sonnet | Pattern-following coding                                         |
+| Root-cause analysis (2nd attempt) | opus   | After simpler approaches have failed                             |
 
 ## Result Handoff
 
-| Mechanism | When |
-|---|---|
-| Return value | Unnamed subagent — the default |
-| `SendMessage(to: "main")` | Named or backgrounded spawns — **must be stated in the initial prompt** |
-| Scratchpad file | Large artifacts. Use the session scratchpad directory from the system prompt; name as `{phase:02d}_{agent}_{artifact}.{ext}` |
+| Mechanism                 | When                                                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Return value              | Unnamed subagent — the default                                                                                               |
+| `SendMessage(to: "main")` | Named or backgrounded spawns — **must be stated in the initial prompt**                                                      |
+| Scratchpad file           | Large artifacts. Use the session scratchpad directory from the system prompt; name as `{phase:02d}_{agent}_{artifact}.{ext}` |
 
-For a named agent, messaging *is* the delivery channel. Omit the report-back instruction and the agent can complete a full review whose findings are then silently dropped. The instruction cannot be added after the spawn, so it belongs in the prompt template. Require a report even when the result set is empty, so "finished with nothing" stays distinguishable from "still running".
+For a named agent, messaging _is_ the delivery channel. Omit the report-back instruction and the agent can complete a full review whose findings are then silently dropped. The instruction cannot be added after the spawn, so it belongs in the prompt template. Require a report even when the result set is empty, so "finished with nothing" stays distinguishable from "still running".
 
 ## Applying Subagent Output
 
