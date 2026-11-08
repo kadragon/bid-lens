@@ -20,13 +20,13 @@ Define "done" in concrete, verifiable terms before writing code. Template: `docs
 
 Testing approach depends on what changes (`docs/conventions.md` holds the authoritative TDD rules):
 
-| Change target | Approach |
-|---|---|
+| Change target                          | Approach                                                                                                |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `src/collector/filter.ts` filter rules | **Red→Green required** — add the failing case to `test/filter.test.ts` first. Never edit existing cases |
-| `src/db/repo.ts` queries | Add a D1 integration test to `test/repo.test.ts` (real D1, no mocking) |
-| `src/web/render*.ts` | Unit test in `test/render.test.ts` |
-| Bug fixes generally | Reproducing test first, then the minimal change that turns it green |
-| Schema | Add a new `migrations/000N_*.sql` (never edit an existing one), verify with `pnpm migrate:local` |
+| `src/db/repo.ts` queries               | Add a D1 integration test to `test/repo.test.ts` (real D1, no mocking)                                  |
+| `src/web/render*.ts`                   | Unit test in `test/render.test.ts`                                                                      |
+| Bug fixes generally                    | Reproducing test first, then the minimal change that turns it green                                     |
+| Schema                                 | Add a new `migrations/000N_*.sql` (never edit an existing one), verify with `pnpm migrate:local`        |
 
 **Step 3 — Implement**
 For ≤2 files, edit inline. Beyond that, hand a `general-purpose` subagent the Sprint Contract, absolute paths of every in-scope file, and the `pnpm test` command, using the 4-field contract in `docs/delegation.md` → Spawn Prompt Contract. Whoever implements does not verify their own output.
@@ -79,12 +79,12 @@ State the question → research or prototype → report options and trade-offs �
 
 ## Permitted Side-Effects
 
-| Primary workflow | Permitted |
-|---|---|
-| `code` | Add discovered issues to `tasks.md` as `[doc]` / `[constraint]` items |
-| `code` | Update related `docs/` after implementing |
-| `draft` | Add a `backlog.md` item when the doc reveals missing behavior |
-| `sweep` | Fix trivial `[doc]` items inline |
+| Primary workflow | Permitted                                                             |
+| ---------------- | --------------------------------------------------------------------- |
+| `code`           | Add discovered issues to `tasks.md` as `[doc]` / `[constraint]` items |
+| `code`           | Update related `docs/` after implementing                             |
+| `draft`          | Add a `backlog.md` item when the doc reveals missing behavior         |
+| `sweep`          | Fix trivial `[doc]` items inline                                      |
 
 **Not permitted:** writing production code during `draft` or `sweep`.
 
@@ -99,14 +99,19 @@ State the question → research or prototype → report options and trade-offs �
 
 ```markdown
 # <sprint title>
+
 status: open | active
 
 ## Covers
+
 - [ ] <item line copied verbatim from backlog.md>
 
 ## Scope
+
 ## Acceptance criteria
+
 ## Out of scope
+
 ## Lint/test command
 ```
 

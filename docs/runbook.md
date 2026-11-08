@@ -44,13 +44,13 @@ pnpm settings live in `pnpm-workspace.yaml` (`overrides`, `allowBuilds`). The `p
 
 ## Env / Secrets
 
-| Name | Kind | Description |
-|---|---|---|
-| `OPEN_DATA_API_PROXY_URL` | secret | Base URL of the KONEPS OpenAPI proxy |
-| `OPEN_DATA_X_API_KEY` | secret | Value for the `x-api-key` header |
-| `ADMIN_PASSWORD` | secret | Basic Auth password for `/admin` (username fixed to `admin`). Unset → `/admin` returns 503. |
-| `LOG_LEVEL` | var (wrangler.toml) | `"info"` |
-| `DB` | D1 binding | The `bid-lens` database |
+| Name                      | Kind                | Description                                                                                 |
+| ------------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
+| `OPEN_DATA_API_PROXY_URL` | secret              | Base URL of the KONEPS OpenAPI proxy                                                        |
+| `OPEN_DATA_X_API_KEY`     | secret              | Value for the `x-api-key` header                                                            |
+| `ADMIN_PASSWORD`          | secret              | Basic Auth password for `/admin` (username fixed to `admin`). Unset → `/admin` returns 503. |
+| `LOG_LEVEL`               | var (wrangler.toml) | `"info"`                                                                                    |
+| `DB`                      | D1 binding          | The `bid-lens` database                                                                     |
 
 **Local:** put secrets in `.dev.vars` (gitignored, never commit). See `.dev.vars.example`.
 

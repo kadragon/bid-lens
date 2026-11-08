@@ -10,19 +10,24 @@ Agree on "done" before implementing. It lives in `tasks.md` as an h1 block while
 
 ```markdown
 # <sprint title>
+
 status: active
 
 ## Scope
+
 - Target files/areas (absolute paths)
 
 ## Acceptance criteria
+
 - [ ] <one checkbox per item — concrete and verifiable; never merge items into one vague line>
 - [ ] <not "it works" but "case X in `pnpm test` passes">
 
 ## Out of scope
+
 - Explicit exclusions — prevents scope creep
 
 ## Lint/test command
+
 pnpm typecheck && pnpm lint && pnpm test
 ```
 
@@ -36,13 +41,13 @@ Four criteria. Weights are deliberately uneven.
 
 Do filter, query, and render produce right results for real inputs?
 
-| Score | Description |
-|---|---|
-| 5 | Happy path plus boundary values verified (zero amount, empty string, special characters, same-day deadline) |
-| 4 | Happy path verified; some boundaries unverified but low risk |
-| 3 | Happy path only — the minimum bar |
-| 2 | Defect on the happy path; wrong result for some real input |
-| 1 | Basic scenario is broken |
+| Score | Description                                                                                                 |
+| ----- | ----------------------------------------------------------------------------------------------------------- |
+| 5     | Happy path plus boundary values verified (zero amount, empty string, special characters, same-day deadline) |
+| 4     | Happy path verified; some boundaries unverified but low risk                                                |
+| 3     | Happy path only — the minimum bar                                                                           |
+| 2     | Defect on the happy path; wrong result for some real input                                                  |
+| 1     | Basic scenario is broken                                                                                    |
 
 **How to test:** run `pnpm test`, then exercise the changed function's boundary values directly. Passing tests alone do not earn a 5 — confirm in the file that the boundary cases actually exist.
 
@@ -50,13 +55,13 @@ Do filter, query, and render produce right results for real inputs?
 
 Does the collect/store path avoid duplication, loss, and silent corruption?
 
-| Score | Description |
-|---|---|
-| 5 | Idempotent upsert confirmed, PK `(bid_ntce_no, bid_ntce_ord)` preserved, migration verified locally |
-| 4 | Idempotency confirmed; no migration involved |
-| 3 | PK constraint intact, idempotency unverified |
-| 2 | Re-running produces duplicates or a distorted count |
-| 1 | PK broken or data lost |
+| Score | Description                                                                                         |
+| ----- | --------------------------------------------------------------------------------------------------- |
+| 5     | Idempotent upsert confirmed, PK `(bid_ntce_no, bid_ntce_ord)` preserved, migration verified locally |
+| 4     | Idempotency confirmed; no migration involved                                                        |
+| 3     | PK constraint intact, idempotency unverified                                                        |
+| 2     | Re-running produces duplicates or a distorted count                                                 |
+| 1     | PK broken or data lost                                                                              |
 
 **How to test:** the D1 integration tests in `pnpm test`, plus upserting the same input twice and confirming the row count is unchanged. For schema changes, confirm `pnpm migrate:local` succeeds.
 
@@ -64,13 +69,13 @@ Does the collect/store path avoid duplication, loss, and silent corruption?
 
 Were the TDD rules in `docs/conventions.md` followed?
 
-| Score | Description |
-|---|---|
-| 5 | Filter change proved Red→Green, D1 change covered by real D1 integration test, no mocking |
-| 4 | Tests present, Red stage not demonstrated |
-| 3 | Some test covers the behavior |
-| 2 | Behavior changed with no test |
-| 1 | An existing test was weakened to make the implementation pass |
+| Score | Description                                                                               |
+| ----- | ----------------------------------------------------------------------------------------- |
+| 5     | Filter change proved Red→Green, D1 change covered by real D1 integration test, no mocking |
+| 4     | Tests present, Red stage not demonstrated                                                 |
+| 3     | Some test covers the behavior                                                             |
+| 2     | Behavior changed with no test                                                             |
+| 1     | An existing test was weakened to make the implementation pass                             |
 
 **Automatic penalty:** modifying, deleting, or skipping an existing test to get a green run scores **1, unconditionally** — and the sprint fails regardless of every other score.
 
@@ -78,13 +83,13 @@ Were the TDD rules in `docs/conventions.md` followed?
 
 Does it follow `DESIGN.md` components, colors, and typography, and stay server-rendered (no SPA)?
 
-| Score | Description |
-|---|---|
-| 5 | Uses DESIGN.md tokens; both mobile and desktop layouts checked |
-| 4 | Uses tokens; only one viewport checked |
-| 3 | Visually consistent with existing styles |
-| 2 | Hard-coded values that diverge from existing tokens |
-| 1 | Broken layout, or a client-side JS framework introduced |
+| Score | Description                                                    |
+| ----- | -------------------------------------------------------------- |
+| 5     | Uses DESIGN.md tokens; both mobile and desktop layouts checked |
+| 4     | Uses tokens; only one viewport checked                         |
+| 3     | Visually consistent with existing styles                       |
+| 2     | Hard-coded values that diverge from existing tokens            |
+| 1     | Broken layout, or a client-side JS framework introduced        |
 
 **Not applicable:** for sprints that do not touch `src/web/`, drop this criterion and redistribute its weight proportionally across the other three.
 

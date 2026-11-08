@@ -5,15 +5,15 @@ Cloudflare Workers (TypeScript, Hono) + D1. Cron UTC 00:00 (KST 09:00). Server-r
 
 ## Docs Index (read on demand)
 
-| File | When to read |
-|------|--------------|
-| `docs/architecture.md` | Before changing module boundaries, data flow, or the D1 schema |
-| `docs/conventions.md` | Before touching filter rules, TS strict, or TDD rules |
-| `docs/workflows.md` | At task start — `code`/`plan`/`draft`/`constrain`/`sweep`/`explore` cycles |
-| `docs/delegation.md` | Before spawning a subagent — objective triggers, 4-field contract |
-| `docs/eval-criteria.md` | When writing a Sprint Contract or grading QA |
-| `docs/runbook.md` | Build/test/deploy commands, env/secrets, incident response |
-| `DESIGN.md` | Before web UI work — components, colors, typography |
+| File                    | When to read                                                               |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `docs/architecture.md`  | Before changing module boundaries, data flow, or the D1 schema             |
+| `docs/conventions.md`   | Before touching filter rules, TS strict, or TDD rules                      |
+| `docs/workflows.md`     | At task start — `code`/`plan`/`draft`/`constrain`/`sweep`/`explore` cycles |
+| `docs/delegation.md`    | Before spawning a subagent — objective triggers, 4-field contract          |
+| `docs/eval-criteria.md` | When writing a Sprint Contract or grading QA                               |
+| `docs/runbook.md`       | Build/test/deploy commands, env/secrets, incident response                 |
+| `DESIGN.md`             | Before web UI work — components, colors, typography                        |
 
 ## Stack
 
@@ -21,17 +21,17 @@ TypeScript strict (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`) · 
 
 ## Critical Files
 
-| Path | Role |
-|---|---|
-| `src/index.ts` | Worker entry — `fetch` + `scheduled` |
-| `src/collector/client.ts` | KONEPS OpenAPI fetch + pagination |
-| `src/collector/filter.ts` | `isTargetBid` — university SW service filter |
-| `src/collector/types.ts` | `BidItem`, API response types |
-| `src/db/repo.ts` | D1 upsert / search queries |
-| `src/web/routes.ts` | HTTP routes (`GET /`, `GET /api/bids`) |
-| `src/web/render.ts` | HTML template renderer |
-| `src/types.ts` | `Env` binding types |
-| `migrations/0001_initial.sql` | D1 schema |
+| Path                          | Role                                         |
+| ----------------------------- | -------------------------------------------- |
+| `src/index.ts`                | Worker entry — `fetch` + `scheduled`         |
+| `src/collector/client.ts`     | KONEPS OpenAPI fetch + pagination            |
+| `src/collector/filter.ts`     | `isTargetBid` — university SW service filter |
+| `src/collector/types.ts`      | `BidItem`, API response types                |
+| `src/db/repo.ts`              | D1 upsert / search queries                   |
+| `src/web/routes.ts`           | HTTP routes (`GET /`, `GET /api/bids`)       |
+| `src/web/render.ts`           | HTML template renderer                       |
+| `src/types.ts`                | `Env` binding types                          |
+| `migrations/0001_initial.sql` | D1 schema                                    |
 
 ## Golden Principles
 
