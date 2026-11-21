@@ -6,7 +6,7 @@ In this repo the evaluator is `.claude/agents/qa-verifier.md`, spawned as a mand
 
 ## Sprint Contract
 
-Agree on "done" before implementing. It lives in `tasks.md` as an h1 block while the sprint is active, and is deleted when the work merges.
+Agree on "done" before implementing. For a multi-item sprint it lives in `tasks.md` as an h1 block while the sprint is active, and is deleted when the work merges. A single-item sprint has no `tasks.md`; the contract is handed to the evaluator inline in its spawn prompt.
 
 ```markdown
 # <sprint title>
@@ -101,12 +101,12 @@ Does it follow `DESIGN.md` components, colors, and typography, and stay server-r
 
 ## Evaluator Protocol
 
-1. Read the Acceptance criteria from the Sprint Contract in `tasks.md`.
+1. Read the Acceptance criteria from the Sprint Contract (`tasks.md`, or inline in the spawn prompt for a single-item sprint).
 2. Read the grading criteria in this document.
 3. Run `pnpm typecheck && pnpm lint && pnpm test` and quote the output verbatim.
 4. List pass/fail per contract item **with evidence** first. Scores come after evidence, never before.
 5. Grade each criterion independently. A strong score on one criterion never excuses weakness on another.
-6. Below threshold → record findings in `tasks.md` → fix → re-evaluate once.
+6. Below threshold → report findings to the orchestrator → fix → re-evaluate once. Findings deferred past this sprint go to `backlog.md`.
 
 The evaluator is **skeptical by default**: look for what is broken, not for what works.
 
@@ -126,7 +126,7 @@ Structurally this is the delegation-bypass problem: identify the issue correctly
 
 ## Calibration Examples
 
-Drawn from this repo's own history (see the `tasks.md` Review Backlog).
+Drawn from this repo's own history (see the `backlog.md` Review Backlog).
 
 ### Score 2 — Correctness
 

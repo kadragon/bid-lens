@@ -443,6 +443,20 @@ describe("parseFilterRules", () => {
     };
     expect(parseFilterRules(empty)).toEqual({ rules: DEFAULT_RULES, usedDefault: true });
   });
+
+  it("returns a copy of DEFAULT_RULES on fallback, never the shared object", () => {
+    const empty = {
+      dmndInclude: [],
+      dmndExclude: [],
+      bsnsDivEquals: [],
+      nameExclude: [],
+      industryInclude: [],
+      industryExclude: [],
+    };
+    const { rules } = parseFilterRules(empty);
+    expect(rules).not.toBe(DEFAULT_RULES);
+    expect(rules.dmndInclude).not.toBe(DEFAULT_RULES.dmndInclude);
+  });
 });
 
 describe("parseFilterInputs", () => {

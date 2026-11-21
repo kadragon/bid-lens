@@ -208,7 +208,7 @@ export function parseFilterRules(raw: unknown): { rules: FilterRules; usedDefaul
     rules[key] = patterns;
   }
   if (RULE_KEYS.every((key) => rules[key]?.length === 0)) {
-    return { rules: DEFAULT_RULES, usedDefault: true };
+    return { rules: structuredClone(DEFAULT_RULES), usedDefault: true };
   }
   return { rules: rules as FilterRules, usedDefault: false };
 }

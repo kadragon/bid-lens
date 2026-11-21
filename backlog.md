@@ -24,5 +24,5 @@
 
 ### PR #71 — [TEST] Move filter-trial rule/sample parsing into src and test it (2026-11-01)
 
-- [ ] [doc] docs/workflows.md (`sweep`: "Record findings in `tasks.md`"), docs/eval-criteria.md (Sprint Contract / below-threshold findings in `tasks.md`) and `.claude/agents/qa-verifier.md` (reads the contract only from `tasks.md`) predate the queue split — review backlog now lives in `backlog.md`, and a single-item sprint has no `tasks.md`, so qa-verifier must be handed the contract inline (source: code-review) — `docs/workflows.md:96`
-- [ ] [debt] `parseFilterRules` all-empty fallback returns the shared `DEFAULT_RULES` object (getFilterRules uses `structuredClone`); a caller mutating the result would corrupt the default — clone it and assert `not.toBe(DEFAULT_RULES)` (source: code-review) — `src/collector/filter.ts:211`
+- [x] [doc] docs/workflows.md (`sweep`: "Record findings in `tasks.md`"), docs/eval-criteria.md (Sprint Contract / below-threshold findings in `tasks.md`) and `.claude/agents/qa-verifier.md` (reads the contract only from `tasks.md`) predate the queue split — review backlog now lives in `backlog.md`, and a single-item sprint has no `tasks.md`, so qa-verifier must be handed the contract inline (source: code-review) — `docs/workflows.md:96`
+- [x] [debt] `parseFilterRules` all-empty fallback returns the shared `DEFAULT_RULES` object (getFilterRules uses `structuredClone`); a caller mutating the result would corrupt the default — clone it and assert `not.toBe(DEFAULT_RULES)` (source: code-review) — `src/collector/filter.ts:211`
