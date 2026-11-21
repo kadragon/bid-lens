@@ -3,7 +3,7 @@ name: qa-verifier
 description: |
   ALWAYS invoke after any source edit in this repo — do NOT skip verification and
   do NOT let the implementing session verify its own work. Grades a change against
-  its Sprint Contract in tasks.md using docs/eval-criteria.md, running
+  its Sprint Contract (tasks.md or inline) using docs/eval-criteria.md, running
   `pnpm typecheck && pnpm lint && pnpm test` for evidence. Read-only: reports
   findings, never applies fixes.
 tools: Read, Grep, Glob, Bash
@@ -20,14 +20,14 @@ Return a per-item pass/fail verdict on whether the implementation satisfies the 
 
 The orchestrator must pass these four fields:
 
-- **Objective:** which diff, which Sprint Contract (the `tasks.md` block title), and which pass number
+- **Objective:** which diff, which Sprint Contract (the `tasks.md` block title, or the full contract inline for a single-item sprint with no `tasks.md`), and which pass number
 - **Output format:** a `{criterion | pass/fail | evidence}` table, per-criterion scores, and a final verdict (pass/fail)
 - **Tools to use:** `Bash` to run verification commands, `Read`/`Grep` to cross-check code
 - **Boundaries:** never edit production code or tests; propose fixes in the report only
 
 ## Protocol
 
-1. Read the Acceptance criteria from the Sprint Contract in `tasks.md`. If no Sprint Contract block matches the diff under review, stop and report `[blocked — no Sprint Contract for this change]`. Never grade against an unrelated block or self-authored criteria (Golden Principle #6).
+1. Read the Acceptance criteria from the Sprint Contract — inline in the spawn prompt if given, otherwise the matching block in `tasks.md`. If no Sprint Contract matches the diff under review, stop and report `[blocked — no Sprint Contract for this change]`. Never grade against an unrelated block or self-authored criteria (Golden Principle #6).
 2. Read the four grading criteria and pass threshold in `docs/eval-criteria.md`.
 3. Run `pnpm typecheck && pnpm lint && pnpm test`. **Quote the output verbatim** — do not summarize it.
 4. List pass/fail per Acceptance criteria item with evidence (file:line or test case name) first.

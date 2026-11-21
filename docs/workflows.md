@@ -16,7 +16,7 @@ Prefixes: `feat/` `fix/` `refactor/` `test/` `harness/` `docs/`. (AGENTS.md Gold
 Check the objective triggers in the `docs/delegation.md` routing table. If any fires, run exploration before editing. If none fire, go straight to Step 2.
 
 **Step 2 — Sprint Contract**
-Define "done" in concrete, verifiable terms before writing code. Template: `docs/eval-criteria.md` → Sprint Contract. It lives in `tasks.md` only while the sprint is active.
+Define "done" in concrete, verifiable terms before writing code. Template: `docs/eval-criteria.md` → Sprint Contract. A multi-item sprint keeps it in `tasks.md` while active; a single-item sprint has no `tasks.md` — keep the contract in the session and hand it to `qa-verifier` inline.
 
 Testing approach depends on what changes (`docs/conventions.md` holds the authoritative TDD rules):
 
@@ -52,7 +52,7 @@ Expand a short request into a spec. Use it for multi-session or structural work;
 
 ## `draft` — Documentation
 
-Write or update `docs/`. Ground every claim in current code. **Never modify production code.** If writing the doc reveals a missing constraint, add an item to `backlog.md` / `tasks.md` and stop there.
+Write or update `docs/`. Ground every claim in current code. **Never modify production code.** If writing the doc reveals a missing constraint, add an item to `backlog.md` and stop there.
 
 ## `constrain` — Structural Enforcement
 
@@ -67,7 +67,7 @@ Existing example: Golden Principle #7 (seed ↔ `DEFAULT_RULES` sync) is enforce
 
 ## `sweep` — Garbage Collection
 
-Run between features. Record findings in `tasks.md` tagged `[doc]`, `[constraint]`, `[debt]`, or `[harness]`. Fix trivial items inline; leave the rest.
+Run between features. Record findings in `backlog.md` tagged `[doc]`, `[constraint]`, `[debt]`, or `[harness]`. Fix trivial items inline; leave the rest.
 
 The harness itself is in scope: "is this component still compensating for a real model limitation?" If not, delete it.
 
@@ -79,12 +79,12 @@ State the question → research or prototype → report options and trade-offs �
 
 ## Permitted Side-Effects
 
-| Primary workflow | Permitted                                                             |
-| ---------------- | --------------------------------------------------------------------- |
-| `code`           | Add discovered issues to `tasks.md` as `[doc]` / `[constraint]` items |
-| `code`           | Update related `docs/` after implementing                             |
-| `draft`          | Add a `backlog.md` item when the doc reveals missing behavior         |
-| `sweep`          | Fix trivial `[doc]` items inline                                      |
+| Primary workflow | Permitted                                                               |
+| ---------------- | ----------------------------------------------------------------------- |
+| `code`           | Add discovered issues to `backlog.md` as `[doc]` / `[constraint]` items |
+| `code`           | Update related `docs/` after implementing                               |
+| `draft`          | Add a `backlog.md` item when the doc reveals missing behavior           |
+| `sweep`          | Fix trivial `[doc]` items inline                                        |
 
 **Not permitted:** writing production code during `draft` or `sweep`.
 
@@ -92,8 +92,8 @@ State the question → research or prototype → report options and trade-offs �
 
 ## Sprint Files
 
-- `backlog.md` — queue of work not yet started. Always present.
-- `tasks.md` — active Sprint Contract plus the review backlog. Delete the sprint block when it lands.
+- `backlog.md` — queue of work not yet started (`## Next`) plus the PR review backlog (`## Review Backlog`). Always present.
+- `tasks.md` — active Sprint Contract for a multi-item sprint only. Delete the file when the sprint lands. Single-item sprints skip it and pass the contract inline to `qa-verifier`.
 
 `tasks.md` h1 sprint block schema:
 
